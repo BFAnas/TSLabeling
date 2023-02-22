@@ -1,0 +1,17 @@
+// Import all of Bootstrap's CSS
+@import "~bootstrap/scss/bootstrap";
+
+.sidebar {
+    background-color: #f8f9fa;
+    padding: 20px;
+    border-right: 1px solid #e1e1e1;
+  }
+
+  .main-content {
+    padding: 20px;
+  }
+
+  /* Hides the sidebar by default */
+  .sidebar-hide {
+    display: none;
+  }
