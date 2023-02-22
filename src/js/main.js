@@ -7,9 +7,6 @@ import * as bootstrap from 'bootstrap'
 // Import d3
 import { csvParse } from 'd3';
 
-//--------------------- Global variables ---------------------------//
-const maxOptions = 4; // the maximum number of column options to be displayed
-
 //--------------------- Functions ---------------------------//
 // Read and parse a CSV file and pass the parsed data to a custom callback function
 function getData(callback) {
@@ -25,26 +22,30 @@ function getData(callback) {
 }
 
 // Create buttons for column options
-function createOptions(options) {
-    const checkboxGroup = document.getElementById("checkbox-group");
-
-    options.slice(0, maxOptions).forEach((option, index) => {
-        const checkbox = document.createElement("div");
-        checkbox.classList.add("p-1");
-        checkbox.innerHTML = `
-            <input class="btn-check" type="checkbox" value="${option}" id="checkbox${index}">
-            <label class="btn btn-outline-primary rounded-pill" for="checkbox${index}">${option}</label>
+function addOption(option) {
+    const checkboxGroup = document.getElementById("checkbox-group");    
+    const deleteCheckbox = document.getElementById('checkbox-del');
+    if (!deleteCheckbox) {
+        const newDeleteCheckbox = document.createElement("div");
+        newDeleteCheckbox.classList.add("p-1");
+        newDeleteCheckbox.innerHTML = `
+        <input class="btn-check" type="checkbox" id="checkbox-del">
+        <label class="btn btn-danger rounded-pill" for="checkbox-del">Delete</label>
         `;
-        checkboxGroup.appendChild(checkbox);
-    });
+        checkboxGroup.appendChild(newDeleteCheckbox);
+    } 
 
-    const deleteCheckbox = document.createElement("div");
-    deleteCheckbox.classList.add("p-1");
-    deleteCheckbox.innerHTML = `
-        <input class="btn-check" type="checkbox" id="checkbox-init">
-        <label class="btn btn-danger rounded-pill" for="checkbox-init">Delete</label>
-    `;
-    checkboxGroup.appendChild(deleteCheckbox);
+    const checkbox =  document.getElementById(`checkbox-${option}`);
+    if (!checkbox) {
+        console.log(option)
+        const newCheckbox = document.createElement("div");
+        newCheckbox.classList.add("p-1");
+        newCheckbox.innerHTML = `
+            <input class="btn-check" type="checkbox" value="${option}" id="checkbox-${option}">
+            <label class="btn btn-outline-primary rounded-pill" for="checkbox-${option}">${option}</label>
+        `;
+        checkboxGroup.insertBefore(newCheckbox, checkboxGroup.lastChild);
+    }
 }
 
 // Create dropdown menu with columns names as options to choose from
@@ -103,13 +104,21 @@ formFile.addEventListener('change', function () {
 // Create dropdown menu with columns names
 createDropdown();
 
+// Add search to the dropdown menu
 const searchInput = document.getElementById('search-input');
 const dropdownList = document.getElementById('dropdown-list');
-searchInput.addEventListener('input', filterList);
 // Add event listeners to update the filtered list as the user types
+searchInput.addEventListener('input', filterList);
 document.addEventListener('click', (event) => {
     if (!dropdownList.contains(event.target)) {
         searchInput.value = '';
         filterList();
     }
+});
+
+// Add event listener to update optionsList
+dropdownList.addEventListener('click', (event) => {
+    const clickedButton = event.target.closest('.list-group-item');
+    const option = clickedButton.textContent;
+    addOption(option);
 });
