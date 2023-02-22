@@ -9,20 +9,21 @@
 <body>
     <div class="main-content">
         <!-- Main content goes here -->
-        <h1>Main Content</h1>
-        <p>This is the main content.</p>
+        <h1>Data exploration</h1>
+        <p>Load a csv file and choose columns to plot</p>
         <!-- select csv file -->
         <div class="p3">
             <label class="form-label" for="file-selector">Select a CSV file</label>
             <input type="file" class="form-control" id="file-selector" accept=".csv" />
         </div>
         <!-- select columns -->
-        <!-- HTML code -->
         <div class="p3">
             <label>Select columns to plot:</label>
-            <div id="checkbox-group", class="btn-group flex-wrap p-3". role="group"></div>
+            <div id="checkbox-group" class="btn-group flex-wrap p-3" role="group"></div>
         </div>
-          
+        <!-- plot columns -->  
+        <div class="container p3" id="plot-area" style="height:400px;">
+        </div>
     </div>
 </body>
 
