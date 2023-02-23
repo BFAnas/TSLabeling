@@ -8,6 +8,31 @@ import * as echarts from 'echarts';
 
 //--------------------- Cached variables ---------------------------//
 let data;
+const chartCache = {};
+const wPerc = 0.95; // echartDom width
+const hPerc = 0.4; // echartDom height
+const commonOption = {
+  dataZoom: [{ type: 'inside', start: 0, end: 100 }],
+  toolbox: {
+    feature: {
+      restore: { show: true, title: 'Restore' },
+      dataView: {
+        show: true,
+        title: 'Data View',
+        readOnly: true,
+        lang: ['Data View', 'Close', 'Refresh'],
+      },
+      saveAsImage: { show: true, title: 'Save As Image', type: 'png' },
+    },
+  },
+  grid: {
+    left: '5%',
+    right: '5%',
+    bottom: '10%',
+    top: '10%',
+    containLabel: true
+  },
+} // echart common option
 
 
 //--------------------- Functions ---------------------------//
@@ -117,40 +142,48 @@ function generateList(columns) {
 }
 
 // Plot column
-function plotColumn(column) {
-  // Find the minimum and maximum values of the array
-  const columnMin = Math.min(...column);
-  const columnMax = Math.max(...column);
-
-  // Calculate the y-axis limits with a 10% margin
-  const margin = 0.1 * (columnMax - columnMin);
-  const yMin = columnMin - margin;
-  const yMax = columnMax + margin;
-
-  // Init eChart plot
-  var chartDom = document.getElementById('plot-area');
-  var myChart = echarts.init(chartDom);
-  var option;
+function plotColumn(column, col_name) {
+  const plotArea = document.getElementById('plots-area');
+  const cache = chartCache[col_name];
   
-  option = {
-    xAxis: {
-      type: 'category',
-    },
-    yAxis: {
-      type: 'value', 
-      min: yMin,
-      max: yMax
-    },
-    series: [
-      {
-        data: column,
-        type: 'line'
-      }
-    ]
-  };
+  if (cache) {
+    plotArea.appendChild(cache);
+  } else {
+    const isNumerical = column.every(element => !isNaN(element));
+    const columnMin = isNumerical ? Math.min(...column) : null;
+    const columnMax = isNumerical ? Math.max(...column) : null;
+    const margin = isNumerical ? 0.1 * (columnMax - columnMin) : null;
+    const yMin = isNumerical ? columnMin - margin : null;
+    const yMax = isNumerical ? columnMax + margin : null;
+    
+    let chartDom = document.getElementById('plot-' + col_name) || document.createElement('div');
+    chartDom.classList.add('container-fluid', 'myChartContainer');
+    chartDom.id = 'plot-' + col_name;
+    chartDom.style.width = Math.round(wPerc * document.body.clientWidth) + 'px';
+    chartDom.style.height = Math.round(hPerc * document.body.clientWidth) + 'px';
+
+    const myChart = echarts.init(chartDom);
+    const option = {
+      xAxis: { type: 'category' },
+      yAxis: { type: isNumerical ? 'value' : 'category', min: yMin, max: yMax },
+      series: [
+        { data: column, type: isNumerical ? 'line' : 'scatter' },
+      ],
+    };
+    
+    myChart.setOption(Object.assign({}, option, commonOption));
+    plotArea.appendChild(chartDom);
   
-  // plot
-  option && myChart.setOption(option);
+    chartCache[col_name] = chartDom;
+  }
+}
+
+// Delete column plot
+function delPlot(col_name) {
+  let chartDom = document.getElementById('plot-' + col_name);
+  if (chartDom) { // check if chartDom is not null
+    chartDom.remove();
+  }
 }
 
 //--------------------- Main ---------------------------//
@@ -201,17 +234,28 @@ deleteButton.addEventListener('click', (event) => {
 const checkboxGroup = document.getElementById("checkbox-group");
 checkboxGroup.addEventListener('click', (event) => {
   const checkboxesInput = checkboxGroup.querySelectorAll("input[type=checkbox]");
-  for (let i = 0; i < checkboxesInput.length; i++) {
-    if (checkboxesInput[i].checked) {
-      var col_name = checkboxesInput[i].value
+  checkboxesInput.forEach((checkbox) => {
+    const col_name = checkbox.value;
+    if (checkbox.checked) {
       getData()
-      .then((data) => {
-        plotColumn(data.map(obj => obj[col_name]));
-      })
-      .catch((error) => {
-        console.error(error);
-      });
-      break;
+        .then((data) => plotColumn(data.map(obj => obj[col_name]), col_name))
+        .catch(console.error);
     }
+    else {
+      delPlot(col_name);
+    }
+  });
+});
+
+// Add event listener for window resize
+window.addEventListener('resize', () => {
+  // Loop through chartCache and resize each chart
+  for (const col_name in chartCache) {
+    const chartDom = chartCache[col_name];
+    chartDom.style.width = Math.round(wPerc*document.body.clientWidth).toString() + 'px';
+    chartDom.style.height = Math.round(hPerc*document.body.clientWidth).toString() + 'px';
+    const myChart = echarts.getInstanceByDom(chartDom);
+    myChart.resize();
+    console.log(`Resize ${col_name}`)
   }
 });
