@@ -8,31 +8,38 @@ import * as echarts from 'echarts';
 
 //--------------------- Cached variables ---------------------------//
 let data;
-const chartCache = {};
-const wPerc = 0.95; // echartDom width
-const hPerc = 0.4; // echartDom height
-const commonOption = {
-  dataZoom: [{ type: 'inside', start: 0, end: 100 }],
+let cachePlotArea = document.getElementById('plots-area');
+cachePlotArea.classList.add('container-fluid');
+let cacheChart = echarts.init(cachePlotArea);
+const cacheWPerc = 0.95; // echartDom width
+const cacheHPerc = 0.3; // echartDom height
+const cacheGrid = {
+  left: '10%',
+  right: '5%',
+  top: '15%',
+  height: '70%',
+  bottom: '10%'
+};
+const option = {
+  xAxis: [],
+  yAxis: [],
+  series: [],
+  dataZoom: [
+    { type: 'inside', realtime: true, start: 30, end:70 },
+    { start: 30, end:70 },
+  ],
   toolbox: {
     feature: {
       restore: { show: true, title: 'Restore' },
-      dataView: {
-        show: true,
-        title: 'Data View',
-        readOnly: true,
-        lang: ['Data View', 'Close', 'Refresh'],
-      },
+      dataView: { show: true, title: 'Data View', readOnly: true, lang: ['Data View', 'Close', 'Refresh'] },
       saveAsImage: { show: true, title: 'Save As Image', type: 'png' },
-    },
+      dataZoom: { yAxisIndex: 'none' }
+    }
   },
-  grid: {
-    left: '5%',
-    right: '5%',
-    bottom: '10%',
-    top: '10%',
-    containLabel: true
-  },
-} // echart common option
+  tooltip: { trigger: 'axis', axisPointer: { animation: false } },
+  axisPointer: { link: [{ xAxisIndex: 'all' }] }
+};
+cacheChart.setOption(option);
 
 
 //--------------------- Functions ---------------------------//
@@ -141,49 +148,82 @@ function generateList(columns) {
   });
 }
 
-// Plot column
-function plotColumn(column, col_name) {
-  const plotArea = document.getElementById('plots-area');
-  const cache = chartCache[col_name];
-  
-  if (cache) {
-    plotArea.appendChild(cache);
+// Plot column in shared chart
+function plotColumn(colData, colName) {
+  const isNumerical = colData.every(element => !isNaN(element));
+  const columnMin = isNumerical ? Math.min(...colData) : null;
+  const columnMax = isNumerical ? Math.max(...colData) : null;
+  const margin = isNumerical ? 0.1 * (columnMax - columnMin) : null;
+  const yMin = isNumerical ? columnMin - margin : null;
+  const yMax = isNumerical ? columnMax + margin : null;
+  const numAxes = option.xAxis.length;
+  const isEmptySeries = !Array.isArray(option.series) || option.series.length === 0;
+  if (isEmptySeries) {
+    cachePlotArea.style.width = `${Math.round(cacheWPerc * document.body.clientWidth)}px`;
+    option.grid = [Object.assign({}, cacheGrid)];
   } else {
-    const isNumerical = column.every(element => !isNaN(element));
-    const columnMin = isNumerical ? Math.min(...column) : null;
-    const columnMax = isNumerical ? Math.max(...column) : null;
-    const margin = isNumerical ? 0.1 * (columnMax - columnMin) : null;
-    const yMin = isNumerical ? columnMin - margin : null;
-    const yMax = isNumerical ? columnMax + margin : null;
-    
-    let chartDom = document.getElementById('plot-' + col_name) || document.createElement('div');
-    chartDom.classList.add('container-fluid', 'myChartContainer');
-    chartDom.id = 'plot-' + col_name;
-    chartDom.style.width = Math.round(wPerc * document.body.clientWidth) + 'px';
-    chartDom.style.height = Math.round(hPerc * document.body.clientWidth) + 'px';
-
-    const myChart = echarts.init(chartDom);
-    const option = {
-      xAxis: { type: 'category' },
-      yAxis: { type: isNumerical ? 'value' : 'category', min: yMin, max: yMax },
-      series: [
-        { data: column, type: isNumerical ? 'line' : 'scatter' },
-      ],
-    };
-    
-    myChart.setOption(Object.assign({}, option, commonOption));
-    plotArea.appendChild(chartDom);
-  
-    chartCache[col_name] = chartDom;
+    const newGridHeight = Math.round(parseInt(cacheGrid.height) / (numAxes + 1));
+    const newGridTop = Math.round(parseInt(cacheGrid.top) / (numAxes + 1));
+    const newGridBottom = Math.round(parseInt(cacheGrid.bottom) / (numAxes + 1));
+    option.grid.push(Object.assign({}, cacheGrid));
+    option.grid.forEach((obj, index) => {
+      obj.height = `${newGridHeight}%`;
+      obj.top = `${newGridTop + index * (newGridHeight + newGridTop + newGridBottom)}%`;
+      obj.bottom = `${newGridBottom + (numAxes - index) * (newGridHeight + newGridTop + newGridBottom)}%`;
+    });
   }
+  cachePlotArea.style.height = `${(numAxes + 1) * Math.round(cacheHPerc * document.body.clientWidth)}px`;
+  option.dataZoom.forEach(obj => obj.xAxisIndex = Array.from({ length: numAxes + 1 }, (_, i) => i));
+  option.xAxis.push({ type: 'category', gridIndex: numAxes });
+  option.yAxis.push({ name: colName, type: isNumerical ? 'value' : 'category', min: yMin, max: yMax, gridIndex: numAxes });
+  option.series.push({ name: colName, data: colData, type: 'line', xAxisIndex: numAxes, yAxisIndex: numAxes });
+  cacheChart.clear();
+  cacheChart.setOption(option);
+  cacheChart.resize();
 }
 
-// Delete column plot
-function delPlot(col_name) {
-  let chartDom = document.getElementById('plot-' + col_name);
-  if (chartDom) { // check if chartDom is not null
-    chartDom.remove();
+
+// Delete column plot from shared plot
+function delPlot(colName) {
+  // Check if cacheChart is not empty.
+  if (!Array.isArray(option.series) || option.series.length === 0) {
+    console.log("cacheChart doesn't contain any plots");
+    return;
   }
+  // Use some() method to check if colName exists in any of the objects in yAxis array.
+  const isColNameInYAxis = option.yAxis.some(obj => obj.name === colName);
+  if (!isColNameInYAxis) {
+    console.log(`${colName} not found in yAxis array`);
+    return;
+  }
+  const idx = option.yAxis.findIndex(obj => obj.name === colName);
+  // change the grid index for plots with indices greater than idx
+  option.xAxis.forEach((obj, index) => {if (index > idx) {obj.gridIndex -= 1}});
+  option.yAxis.forEach((obj, index) => {if (index > idx) {obj.gridIndex -= 1}});
+  option.series.forEach((obj, index) => {if (index > idx) {obj.xAxisIndex -= 1; obj.yAxisIndex -= 1}});
+  // delete plot
+  option.xAxis.splice(idx, 1);
+  option.yAxis.splice(idx, 1);
+  option.series.splice(idx, 1);
+  option.grid.splice(idx, 1);
+  const numAxes = option.xAxis.length;
+  if (numAxes > 0) {
+    const newGridHeight = Math.round(parseInt(cacheGrid.height) / numAxes);
+    const newGridTop = Math.round(parseInt(cacheGrid.top) / numAxes);
+    const newGridBottom = Math.round(parseInt(cacheGrid.bottom) / numAxes);
+    option.grid.forEach((obj, index) => {
+      obj.height = `${newGridHeight}%`;
+      obj.top = `${newGridTop + index * (newGridHeight + newGridTop + newGridBottom)}%`;
+      obj.bottom = `${newGridBottom + (numAxes - index) * (newGridHeight + newGridTop + newGridBottom)}%`;
+    });
+  } else {
+    option.grid = Object.assign({}, cacheGrid);
+  }
+  cacheChart.clear();
+  cacheChart.setOption(option);
+  cachePlotArea.style.height = `${numAxes * Math.round(cacheHPerc * document.body.clientWidth)}px`;
+  console.log(cachePlotArea.style.height);
+  cacheChart.resize();
 }
 
 //--------------------- Main ---------------------------//
@@ -220,7 +260,7 @@ document.addEventListener('click', (event) => {
 // Add event listener to update optionsList
 dropdownList.addEventListener('click', (event) => {
   const clickedButton = event.target.closest('.list-group-item');
-  const option = clickedButton.textContent;
+  var option = clickedButton.textContent;
   newOption(option);
 });
 
@@ -232,30 +272,25 @@ deleteButton.addEventListener('click', (event) => {
 
 // Plot selected columns
 const checkboxGroup = document.getElementById("checkbox-group");
+
 checkboxGroup.addEventListener('click', (event) => {
-  const checkboxesInput = checkboxGroup.querySelectorAll("input[type=checkbox]");
-  checkboxesInput.forEach((checkbox) => {
-    const col_name = checkbox.value;
-    if (checkbox.checked) {
-      getData()
-        .then((data) => plotColumn(data.map(obj => obj[col_name]), col_name))
-        .catch(console.error);
-    }
-    else {
-      delPlot(col_name);
-    }
-  });
+  const checkbox = event.target;
+  const colName = checkbox.value;
+  if (checkbox.checked === true) {
+    console.log(`${colName} checkbox checked ${checkbox.checked}`);
+    getData()
+      .then((data) => plotColumn(data.map(obj => obj[colName]), colName))
+      .catch(console.error);
+  } else if (checkbox.checked === false) {
+    console.log(`${colName} checkbox checked ${checkbox.checked}`);
+    delPlot(colName);
+  }
 });
 
-// Add event listener for window resize
-window.addEventListener('resize', () => {
-  // Loop through chartCache and resize each chart
-  for (const col_name in chartCache) {
-    const chartDom = chartCache[col_name];
-    chartDom.style.width = Math.round(wPerc*document.body.clientWidth).toString() + 'px';
-    chartDom.style.height = Math.round(hPerc*document.body.clientWidth).toString() + 'px';
-    const myChart = echarts.getInstanceByDom(chartDom);
-    myChart.resize();
-    console.log(`Resize ${col_name}`)
-  }
+// Resize the chart when the window is resized
+window.addEventListener('resize', function() {
+  const numAxes = option.xAxis.length;
+  cachePlotArea.style.width = `${Math.round(cacheWPerc * document.body.clientWidth)}px`;
+  cachePlotArea.style.height = `${numAxes * Math.round(cacheHPerc * document.body.clientWidth)}px`;
+  cacheChart.resize();
 });
