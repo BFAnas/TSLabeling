@@ -11,14 +11,15 @@ let data;
 let cachePlotArea = document.getElementById('plots-area');
 cachePlotArea.classList.add('container-fluid');
 let cacheChart = echarts.init(cachePlotArea);
-const cacheWPerc = 0.99; // echartDom width
+const cacheWPerc = 0.95; // echartDom width
 const cacheHPerc = 0.2; // echartDom height
-const right = '10%';
+const cacheSliderHPerc = 0.7;
+const right = '2%';
 const cacheGrid = {
   left: '5%',
   right: right,
   top: '20%',
-  height: '65%',
+  height: '70%',
   bottom: '10%'
 };
 const option = {
@@ -26,7 +27,7 @@ const option = {
   yAxis: [],
   series: [],
   dataZoom: [
-    { type: 'inside', realtime: true, start: 30, end:70 }
+    { type: 'inside', realtime: true},
   ],
   toolbox: {
     right: right,
@@ -163,21 +164,22 @@ function plotColumn(colData, colName) {
     cachePlotArea.style.width = `${Math.round(cacheWPerc * document.body.clientWidth)}px`;
     option.grid = [Object.assign({}, cacheGrid)];
   } else {
-    const newGridHeight = Math.round(parseInt(cacheGrid.height) / (numAxes + 1));
-    const newGridTop = Math.round(parseInt(cacheGrid.top) / (numAxes + 1));
-    const newGridBottom = Math.round(parseInt(cacheGrid.bottom) / (numAxes + 1));
+    const newGridHeight = parseInt(cacheGrid.height) / (numAxes + 1);
+    const newGridTop = parseInt(cacheGrid.top) / (numAxes + 1);
+    const newGridBottom = parseInt(cacheGrid.bottom) / (numAxes + 1);
     option.grid.push(Object.assign({}, cacheGrid));
     option.grid.forEach((obj, index) => {
       obj.height = `${newGridHeight}%`;
       obj.top = `${newGridTop + index * (newGridHeight + newGridTop + newGridBottom)}%`;
-      obj.bottom = `${newGridBottom + (numAxes - index) * (newGridHeight + newGridTop + newGridBottom)}%`;
+      obj.bottom = `${newGridBottom + (numAxes - index) * (newGridHeight + newGridTop)}%`;
     });
   }
   cachePlotArea.style.height = `${(numAxes + 1) * Math.round(cacheHPerc * document.body.clientWidth)}px`;
   option.dataZoom.forEach(obj => obj.xAxisIndex = Array.from({ length: numAxes + 1 }, (_, i) => i));
   option.xAxis.push({ type: 'category', gridIndex: numAxes });
-  option.yAxis.push({ name: colName, type: isNumerical ? 'value' : 'category', min: yMin, max: yMax, gridIndex: numAxes, position: 'left' });
+  option.yAxis.push({ name: colName, nameTextStyle: {align: 'left'}, type: isNumerical ? 'value' : 'category', min: yMin, max: yMax, gridIndex: numAxes });
   option.series.push({ name: colName, data: colData, type: 'line', xAxisIndex: numAxes, yAxisIndex: numAxes });
+  console.log(cacheSliderHPerc * parseInt(option.grid[0].height) / 100)
   cacheChart.clear();
   cacheChart.setOption(option);
   cacheChart.resize();
@@ -209,13 +211,13 @@ function delPlot(colName) {
   option.grid.splice(idx, 1);
   const numAxes = option.xAxis.length;
   if (numAxes > 0) {
-    const newGridHeight = Math.round(parseInt(cacheGrid.height) / numAxes);
-    const newGridTop = Math.round(parseInt(cacheGrid.top) / numAxes);
-    const newGridBottom = Math.round(parseInt(cacheGrid.bottom) / numAxes);
+    const newGridHeight = parseInt(cacheGrid.height) / numAxes;
+    const newGridTop = parseInt(cacheGrid.top) / numAxes;
+    const newGridBottom = parseInt(cacheGrid.bottom) / numAxes;
     option.grid.forEach((obj, index) => {
       obj.height = `${newGridHeight}%`;
       obj.top = `${newGridTop + index * (newGridHeight + newGridTop + newGridBottom)}%`;
-      obj.bottom = `${newGridBottom + (numAxes - index) * (newGridHeight + newGridTop + newGridBottom)}%`;
+      obj.bottom = `${newGridBottom + (numAxes - index) * (newGridHeight + newGridTop)}%`;
     });
   } else {
     option.grid = Object.assign({}, cacheGrid);
