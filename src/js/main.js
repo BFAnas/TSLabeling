@@ -11,13 +11,14 @@ let data;
 let cachePlotArea = document.getElementById('plots-area');
 cachePlotArea.classList.add('container-fluid');
 let cacheChart = echarts.init(cachePlotArea);
-const cacheWPerc = 0.95; // echartDom width
-const cacheHPerc = 0.3; // echartDom height
+const cacheWPerc = 0.99; // echartDom width
+const cacheHPerc = 0.2; // echartDom height
+const right = '10%';
 const cacheGrid = {
-  left: '10%',
-  right: '5%',
-  top: '15%',
-  height: '70%',
+  left: '5%',
+  right: right,
+  top: '20%',
+  height: '65%',
   bottom: '10%'
 };
 const option = {
@@ -25,10 +26,10 @@ const option = {
   yAxis: [],
   series: [],
   dataZoom: [
-    { type: 'inside', realtime: true, start: 30, end:70 },
-    { start: 30, end:70 },
+    { type: 'inside', realtime: true, start: 30, end:70 }
   ],
   toolbox: {
+    right: right,
     feature: {
       restore: { show: true, title: 'Restore' },
       dataView: { show: true, title: 'Data View', readOnly: true, lang: ['Data View', 'Close', 'Refresh'] },
@@ -175,7 +176,7 @@ function plotColumn(colData, colName) {
   cachePlotArea.style.height = `${(numAxes + 1) * Math.round(cacheHPerc * document.body.clientWidth)}px`;
   option.dataZoom.forEach(obj => obj.xAxisIndex = Array.from({ length: numAxes + 1 }, (_, i) => i));
   option.xAxis.push({ type: 'category', gridIndex: numAxes });
-  option.yAxis.push({ name: colName, type: isNumerical ? 'value' : 'category', min: yMin, max: yMax, gridIndex: numAxes });
+  option.yAxis.push({ name: colName, type: isNumerical ? 'value' : 'category', min: yMin, max: yMax, gridIndex: numAxes, position: 'left' });
   option.series.push({ name: colName, data: colData, type: 'line', xAxisIndex: numAxes, yAxisIndex: numAxes });
   cacheChart.clear();
   cacheChart.setOption(option);
