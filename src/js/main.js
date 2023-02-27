@@ -133,7 +133,7 @@ function filterList() {
   Array.from(items).forEach((item) => {
     const text = item.textContent.toLowerCase();
     const match = text.includes(query);
-    item.style.display = match ? 'list-item' : 'none';
+    item.style.display = match ? item.classList.remove('d-none') : item.classList.add('d-none');
   });
 }
 
