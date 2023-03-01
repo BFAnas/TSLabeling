@@ -27,7 +27,7 @@ const option = {
   yAxis: [],
   series: [],
   dataZoom: [
-    { type: 'inside', realtime: true }
+    { type: 'inside', realtime: true}, 
   ],
   toolbox: {
     right: right,
@@ -130,6 +130,17 @@ function delUncheckedCol() {
   for (let i = 0; i < checkboxesInput.length; i++) {
     if (!(checkboxesInput[i].checked)) {
       checkboxesInput[i].parentNode.remove();
+    }
+  }
+}
+
+// Delete button of label options
+function delCheckedLabel() {
+  const radioGroup = document.getElementById("radio-group");
+  const radiosInput = radioGroup.querySelectorAll("input[type=radio]");
+  for (let i = 0; i < radiosInput.length; i++) {
+    if ((radiosInput[i].checked)) {
+      radiosInput[i].parentNode.remove();
     }
   }
 }
@@ -288,6 +299,12 @@ deleteColButton.addEventListener('click', () => {
 const addLabelButton = document.getElementById('modal-ok-btn');
 addLabelButton.addEventListener('click', () => {
   handleModalSubmit();
+});
+
+// Add event listener to delete column option
+const deleteLabelButton = document.getElementById('del-label-btn');
+deleteLabelButton.addEventListener('click', () => {
+  delCheckedLabel();
 });
 
 // Plot selected columns
