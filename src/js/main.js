@@ -8,12 +8,12 @@ import * as echarts from 'echarts';
 
 //--------------------- Cached variables ---------------------------//
 let data;
+let cacheLabels;
 let cachePlotArea = document.getElementById('plots-area');
 cachePlotArea.classList.add('container-fluid');
 let cacheChart = echarts.init(cachePlotArea);
 const cacheWPerc = 0.95; // echartDom width
 const cacheHPerc = 0.2; // echartDom height
-const cacheSliderHPerc = 0.7;
 const right = '2%';
 const cacheGrid = {
   left: '5%',
@@ -27,7 +27,7 @@ const option = {
   yAxis: [],
   series: [],
   dataZoom: [
-    { type: 'inside', realtime: true},
+    { type: 'inside', realtime: true }
   ],
   toolbox: {
     right: right,
@@ -35,11 +35,21 @@ const option = {
       restore: { show: true, title: 'Restore' },
       dataView: { show: true, title: 'Data View', readOnly: true, lang: ['Data View', 'Close', 'Refresh'] },
       saveAsImage: { show: true, title: 'Save As Image', type: 'png' },
-      dataZoom: { yAxisIndex: 'none' }
-    }
+      dataZoom: { yAxisIndex: 'none' },
+      brush: {
+        type: ['lineX', 'clear']
+      }
+    },
   },
   tooltip: { trigger: 'axis', axisPointer: { animation: false } },
-  axisPointer: { link: [{ xAxisIndex: 'all' }] }
+  axisPointer: { link: [{ xAxisIndex: 'all' }] },
+  brush: {
+    xAxisIndex: 'all',
+    brushLink: 'all',
+    outOfBrush: {
+      colorAlpha: 0.1
+    }
+  },
 };
 cacheChart.setOption(option);
 
@@ -69,19 +79,8 @@ function getData() {
   });
 }
 
-// Create delete button
-function createDelButton() {
-  const checkboxGroup = document.getElementById("checkbox-group");
-  const newDeleteButton = document.createElement("div");
-  newDeleteButton.classList.add("p-1");
-  newDeleteButton.innerHTML = `
-      <button type="button" class="btn btn-danger rounded-pill" id="delete-btn">Delete</button>
-      `;
-  checkboxGroup.appendChild(newDeleteButton);
-}
-
 // Create buttons of column options
-function newOption(option) {
+function newColOption(option) {
   const checkboxGroup = document.getElementById("checkbox-group");
   const checkbox = document.getElementById(`checkbox-${option}`);
   if (!checkbox) {
@@ -91,12 +90,41 @@ function newOption(option) {
             <input class="btn-check" type="checkbox" value="${option}" id="checkbox-${option}">
             <label class="btn btn-outline-primary rounded-pill" for="checkbox-${option}">${option}</label>
         `;
-    checkboxGroup.insertBefore(newCheckbox, checkboxGroup.lastChild);
+    checkboxGroup.insertBefore(newCheckbox, checkboxGroup.lastElementChild);
+  }
+}
+
+// Create buttons of label options
+function newLabelOption(option) {
+  const radioGroup = document.getElementById("radio-group");
+  const radio = document.getElementById(`radio-${option}`);
+  if (!radio) {
+    const newradio = document.createElement("div");
+    newradio.classList.add("p-1");
+    newradio.innerHTML = `
+          <input type="radio" class="btn-check" name="btnradio" id="btnradio-${option}" autocomplete="off" checked>
+          <label class="btn btn-outline-primary rounded-pill" for="btnradio-${option}">${option}</label>
+        `;
+    radioGroup.insertBefore(newradio, radioGroup.lastElementChild);
+  }
+}
+
+// Handle modal ok button
+const myModal = new bootstrap.Modal(document.getElementById("myModal"));
+function handleModalSubmit() {
+  const userInput = document.getElementById("labelTextInput").value;
+  if (userInput.trim() !== '') {
+    newLabelOption(userInput);
+    // Hide the modal
+    myModal.hide();
+  } else {
+    // User did not enter any text
+    alert("Please enter some text");
   }
 }
 
 // Delete button of column options
-function delUnchecked() {
+function delUncheckedCol() {
   const checkboxGroup = document.getElementById("checkbox-group");
   const checkboxesInput = checkboxGroup.querySelectorAll("input[type=checkbox]");
   for (let i = 0; i < checkboxesInput.length; i++) {
@@ -104,28 +132,6 @@ function delUnchecked() {
       checkboxesInput[i].parentNode.remove();
     }
   }
-}
-
-// Create dropdown menu with columns names as options to choose from
-function createDropdown() {
-  const checkboxGroup = document.getElementById("checkbox-group");
-  const checkbox = document.createElement("div");
-  checkbox.classList.add("dropdown", "p-1");
-  checkbox.innerHTML += `
-    <button class="btn btn-success dropdown-toggle rounded-pill" type="button" id="dropdownMenuButton" data-bs-toggle="dropdown" aria-expanded="false">
-    Add
-    </button>
-    <div class="dropdown-menu" aria-labelledby="dropdownMenuButton">
-        <div>
-        <span id="search-addon"><i class="bi bi-search"></i></span>
-        <input type="text" class="form-control" placeholder="Search" aria-label="Search" aria-describedby="search-addon" id="search-input">
-        </div>
-        <ul class="list-group" id="dropdown-list" style="max-height: 300px; overflow-y: auto;">
-        <!-- List items will be dynamically generated from JavaScript -->
-        </ul>
-    </div>
-    `;
-  checkboxGroup.appendChild(checkbox);
 }
 
 // Filter the list items based on the search query
@@ -177,9 +183,11 @@ function plotColumn(colData, colName) {
   cachePlotArea.style.height = `${(numAxes + 1) * Math.round(cacheHPerc * document.body.clientWidth)}px`;
   option.dataZoom.forEach(obj => obj.xAxisIndex = Array.from({ length: numAxes + 1 }, (_, i) => i));
   option.xAxis.push({ type: 'category', gridIndex: numAxes });
-  option.yAxis.push({ name: colName, nameTextStyle: {align: 'left'}, type: isNumerical ? 'value' : 'category', min: yMin, max: yMax, gridIndex: numAxes });
+  option.yAxis.push({
+    name: colName, nameTextStyle: { align: 'left' }, type: isNumerical ? 'value' : 'category',
+    min: yMin.toFixed(1), max: yMax.toFixed(1), gridIndex: numAxes 
+  });
   option.series.push({ name: colName, data: colData, type: 'line', xAxisIndex: numAxes, yAxisIndex: numAxes });
-  console.log(cacheSliderHPerc * parseInt(option.grid[0].height) / 100)
   cacheChart.clear();
   cacheChart.setOption(option);
   cacheChart.resize();
@@ -201,9 +209,9 @@ function delPlot(colName) {
   }
   const idx = option.yAxis.findIndex(obj => obj.name === colName);
   // change the grid index for plots with indices greater than idx
-  option.xAxis.forEach((obj, index) => {if (index > idx) {obj.gridIndex -= 1}});
-  option.yAxis.forEach((obj, index) => {if (index > idx) {obj.gridIndex -= 1}});
-  option.series.forEach((obj, index) => {if (index > idx) {obj.xAxisIndex -= 1; obj.yAxisIndex -= 1}});
+  option.xAxis.forEach((obj, index) => { if (index > idx) { obj.gridIndex -= 1 } });
+  option.yAxis.forEach((obj, index) => { if (index > idx) { obj.gridIndex -= 1 } });
+  option.series.forEach((obj, index) => { if (index > idx) { obj.xAxisIndex -= 1; obj.yAxisIndex -= 1 } });
   // delete plot
   option.xAxis.splice(idx, 1);
   option.yAxis.splice(idx, 1);
@@ -225,14 +233,22 @@ function delPlot(colName) {
   cacheChart.clear();
   cacheChart.setOption(option);
   cachePlotArea.style.height = `${numAxes * Math.round(cacheHPerc * document.body.clientWidth)}px`;
-  console.log(cachePlotArea.style.height);
   cacheChart.resize();
 }
 
+function filterData(data, colName, coordRange) {
+  const filteredData = data.slice(coordRange[0], coordRange[1]);
+  const filteredValues = filteredData.map(obj => obj[colName]);
+  return filteredValues
+}
+
 //--------------------- Main ---------------------------//
-const formFile = document.getElementById('file-selector');
+// Set placeholder div size
+var windowHeight = window.innerHeight;
+document.getElementById("placeholder-div").style.height = windowHeight + "px";
 
 // Read csv and get the data
+const formFile = document.getElementById('file-selector');
 formFile.addEventListener('change', function () {
   getData()
     .then((data) => {
@@ -242,11 +258,6 @@ formFile.addEventListener('change', function () {
       console.error(error);
     });
 }, false);
-
-// Create dropdown menu with columns names
-createDropdown();
-// Crete delete button
-createDelButton();
 
 // Add search to the dropdown menu
 const searchInput = document.getElementById('search-input');
@@ -264,18 +275,23 @@ document.addEventListener('click', (event) => {
 dropdownList.addEventListener('click', (event) => {
   const clickedButton = event.target.closest('.list-group-item');
   var option = clickedButton.textContent;
-  newOption(option);
+  newColOption(option);
 });
 
 // Add event listener to delete column option
-const deleteButton = document.getElementById('delete-btn');
-deleteButton.addEventListener('click', (event) => {
-  delUnchecked();
+const deleteColButton = document.getElementById('del-column-btn');
+deleteColButton.addEventListener('click', () => {
+  delUncheckedCol();
+});
+
+// Add event listener to modal ok button
+const addLabelButton = document.getElementById('modal-ok-btn');
+addLabelButton.addEventListener('click', () => {
+  handleModalSubmit();
 });
 
 // Plot selected columns
 const checkboxGroup = document.getElementById("checkbox-group");
-
 checkboxGroup.addEventListener('click', (event) => {
   const checkbox = event.target;
   const colName = checkbox.value;
@@ -291,9 +307,18 @@ checkboxGroup.addEventListener('click', (event) => {
 });
 
 // Resize the chart when the window is resized
-window.addEventListener('resize', function() {
+window.addEventListener('resize', function () {
   const numAxes = option.xAxis.length;
   cachePlotArea.style.width = `${Math.round(cacheWPerc * document.body.clientWidth)}px`;
   cachePlotArea.style.height = `${numAxes * Math.round(cacheHPerc * document.body.clientWidth)}px`;
   cacheChart.resize();
+});
+
+// Get selected data using brush
+cacheChart.on('brushSelected', function (params) {
+  if (params.batch[0].areas.length > 0) {
+    var coordRange = params.batch[0].areas[0].coordRange;
+    var colName = params.batch[0].selected[0].seriesName;
+    getData().then((data) => console.log(filterData(data, colName, coordRange))).catch(console.error);
+  }
 });

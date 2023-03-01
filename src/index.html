@@ -2,29 +2,86 @@
 <html>
 
 <head>
-    <title>DEA</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DEA</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
 </head>
 
 <body>
-    <div class="main-content">
-        <!-- Main content goes here -->
-        <h1>Data exploration</h1>
-        <p>Load a csv file and choose columns to plot</p>
-        <!-- select csv file -->
-        <div class="p3">
-            <label class="form-label" for="file-selector">Select a CSV file</label>
-            <input type="file" class="form-control" id="file-selector" accept=".csv" />
-        </div>
-        <!-- select columns -->
-        <div class="p3">
-            <label>Select columns to plot:</label>
-            <div id="checkbox-group" class="btn-group flex-wrap p-3" role="group"></div>
-        </div>
-        <!-- plot columns -->  
-        <div id="plots-area" class="my-div">
-        </div>
+  <div class="main-content">
+    <!-- Main content goes here -->
+    <h1>Data exploration</h1>
+    <p>Load a csv file and choose columns to plot</p>
+    <!-- CSV file -->
+    <div class="p3">
+      <label class="form-label" for="file-selector">Select a CSV file</label>
+      <input type="file" class="form-control" id="file-selector" accept=".csv" />
     </div>
+    <!-- Columns -->
+    <div class="p3">
+      <label>Columns:</label>
+      <div id="checkbox-group" class="btn-group flex-wrap p-3" role="group">
+        <div class="dropdown p-1">
+          <button class="btn btn-success dropdown-toggle rounded-pill" type="button" id="add-col-btn"
+            data-bs-toggle="dropdown" aria-expanded="false">
+            Add
+          </button>
+          <div class="dropdown-menu" aria-labelledby="add-col-btn">
+            <div>
+              <span id="search-addon"><i class="bi bi-search"></i></span>
+              <input type="text" class="form-control" placeholder="Search" aria-label="Search"
+                aria-describedby="search-addon" id="search-input">
+            </div>
+            <ul class="list-group" id="dropdown-list" style="max-height: 300px; overflow-y: auto;">
+              <!-- List items will be dynamically generated from JavaScript -->
+            </ul>
+          </div>
+        </div>
+        <div class="p-1">
+          <button type="button" class="btn btn-danger rounded-pill" id="del-column-btn">Delete</button>
+        </div>
+      </div>
+    </div>
+    <!-- Labels -->
+    <div class="p3">
+      <label>Labels:</label>
+      <div id="radio-group" class="btn-group flex-wrap p-3" role="group">
+        <div class="p-1">
+          <button type="button" class="btn btn-success rounded-pill" data-bs-toggle="modal" data-bs-target="#myModal" id="add-label-btn">Add </button>
+        </div>
+        <div class="p-1">
+          <button type="button" class="btn btn-danger rounded-pill" id="del-label-btn">Delete</button>
+        </div>
+      </div>
+    </div>
+    <!-- Modal -->
+    <div class="modal fade" id="myModal" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="exampleModalLabel">Add new label</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <form>
+              <div class="mb-3">
+                <label for="labelTextInput" class="form-label">Text input</label>
+                <input type="text" class="form-control" id="labelTextInput" placeholder="Add new label...">
+              </div>
+            </form>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+            <button type="button" class="btn btn-primary" id="modal-ok-btn">OK</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- plot columns -->
+    <div id="placeholder-div" class="my-div">
+      <div id="plots-area" class="my-div">
+      </div>
+    </div>
+  </div>
 </body>
 
 </html>
