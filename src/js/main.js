@@ -8,29 +8,36 @@ import * as echarts from 'echarts';
 
 //--------------------- Cached variables ---------------------------//
 let data;
-let cacheLabels;
+let cacheSelectedLabel = null;
 let cachePlotArea = document.getElementById('plots-area');
 cachePlotArea.classList.add('container-fluid');
 let cacheChart = echarts.init(cachePlotArea);
 const cacheWPerc = 0.95; // echartDom width
 const cacheHPerc = 0.2; // echartDom height
-const right = '2%';
-const cacheGrid = {
+let cacheGrid = {
   left: '5%',
-  right: right,
+  right: '2%',
   top: '20%',
   height: '70%',
   bottom: '10%'
 };
-const option = {
+let initOption = {
   xAxis: [],
   yAxis: [],
   series: [],
   dataZoom: [
-    { type: 'inside', realtime: true}, 
+    { type: 'inside', realtime: true, start: 30, end: 70 }, 
+    { start: 30, end: 70 }
   ],
+  grid: [{
+    left: '5%',
+    right: '2%',
+    top: '20%',
+    height: '70%',
+    bottom: '10%'
+  }],
   toolbox: {
-    right: right,
+    right: '2%',
     feature: {
       restore: { show: true, title: 'Restore' },
       dataView: { show: true, title: 'Data View', readOnly: true, lang: ['Data View', 'Close', 'Refresh'] },
@@ -51,17 +58,20 @@ const option = {
     }
   },
 };
+let option = JSON.parse(JSON.stringify(initOption));
 cacheChart.setOption(option);
 
 
 //--------------------- Functions ---------------------------//
 // Read and parse a CSV file and pass the parsed data
-function getData() {
+function getData(read = false) {
   return new Promise((resolve, reject) => {
-    if (data) {
+    if (data && !read) {
       // If the data is already cached, return it
+      console.log("Returning cached Data");
       resolve(data);
     } else {
+      console.log("Reading Data");
       let file = formFile.files[0];
       let fr = new FileReader();
       fr.onload = receivedText;
@@ -97,12 +107,12 @@ function newColOption(option) {
 // Create buttons of label options
 function newLabelOption(option) {
   const radioGroup = document.getElementById("radio-group");
-  const radio = document.getElementById(`radio-${option}`);
+  const radio = document.getElementById(`btnradio-${option}`);
   if (!radio) {
     const newradio = document.createElement("div");
     newradio.classList.add("p-1");
     newradio.innerHTML = `
-          <input type="radio" class="btn-check" name="btnradio" id="btnradio-${option}" autocomplete="off" checked>
+          <input type="radio" class="btn-check" name="btnradio" id="btnradio-${option}" autocomplete="off">
           <label class="btn btn-outline-primary rounded-pill" for="btnradio-${option}">${option}</label>
         `;
     radioGroup.insertBefore(newradio, radioGroup.lastElementChild);
@@ -123,12 +133,12 @@ function handleModalSubmit() {
   }
 }
 
-// Delete button of column options
-function delUncheckedCol() {
+// Delete button of column options (either all or only unchecked)
+function delColOptions(all = false) {
   const checkboxGroup = document.getElementById("checkbox-group");
   const checkboxesInput = checkboxGroup.querySelectorAll("input[type=checkbox]");
   for (let i = 0; i < checkboxesInput.length; i++) {
-    if (!(checkboxesInput[i].checked)) {
+    if (!all? !(checkboxesInput[i].checked) : true) {
       checkboxesInput[i].parentNode.remove();
     }
   }
@@ -158,6 +168,7 @@ function filterList() {
 
 // Generate the list items from the columns array
 function generateList(columns) {
+  dropdownList.innerHTML = "";
   if (!columns) return console.log('Columns parameter is null.');
   columns.forEach((option) => {
     const listItem = document.createElement('button');
@@ -176,22 +187,18 @@ function plotColumn(colData, colName) {
   const yMin = isNumerical ? columnMin - margin : null;
   const yMax = isNumerical ? columnMax + margin : null;
   const numAxes = option.xAxis.length;
-  const isEmptySeries = !Array.isArray(option.series) || option.series.length === 0;
-  if (isEmptySeries) {
-    cachePlotArea.style.width = `${Math.round(cacheWPerc * document.body.clientWidth)}px`;
-    option.grid = [Object.assign({}, cacheGrid)];
-  } else {
-    const newGridHeight = parseInt(cacheGrid.height) / (numAxes + 1);
-    const newGridTop = parseInt(cacheGrid.top) / (numAxes + 1);
-    const newGridBottom = parseInt(cacheGrid.bottom) / (numAxes + 1);
-    option.grid.push(Object.assign({}, cacheGrid));
-    option.grid.forEach((obj, index) => {
-      obj.height = `${newGridHeight}%`;
-      obj.top = `${newGridTop + index * (newGridHeight + newGridTop + newGridBottom)}%`;
-      obj.bottom = `${newGridBottom + (numAxes - index) * (newGridHeight + newGridTop)}%`;
-    });
-  }
+  cachePlotArea.style.width = `${Math.round(cacheWPerc * document.body.clientWidth)}px`;
   cachePlotArea.style.height = `${(numAxes + 1) * Math.round(cacheHPerc * document.body.clientWidth)}px`;
+  const newGridHeight = parseInt(cacheGrid.height) / (numAxes + 1);
+  const newGridTop = parseInt(cacheGrid.top) / (numAxes + 1);
+  const newGridBottom = parseInt(cacheGrid.bottom) / (numAxes + 1);
+  console.log(option.grid);
+  option.grid.push(Object.assign({}, cacheGrid));
+  option.grid.forEach((obj, index) => {
+    obj.height = `${newGridHeight}%`;
+    obj.top = `${newGridTop + index * (newGridHeight + newGridTop + newGridBottom)}%`;
+    obj.bottom = `${newGridBottom + (numAxes - index) * (newGridHeight + newGridTop + newGridBottom)}%`;
+  });
   option.dataZoom.forEach(obj => obj.xAxisIndex = Array.from({ length: numAxes + 1 }, (_, i) => i));
   option.xAxis.push({ type: 'category', gridIndex: numAxes });
   option.yAxis.push({
@@ -239,7 +246,7 @@ function delPlot(colName) {
       obj.bottom = `${newGridBottom + (numAxes - index) * (newGridHeight + newGridTop)}%`;
     });
   } else {
-    option.grid = Object.assign({}, cacheGrid);
+    option.grid = [Object.assign({}, cacheGrid)];
   }
   cacheChart.clear();
   cacheChart.setOption(option);
@@ -247,10 +254,13 @@ function delPlot(colName) {
   cacheChart.resize();
 }
 
-function filterData(data, colName, coordRange) {
-  const filteredData = data.slice(coordRange[0], coordRange[1]);
-  const filteredValues = filteredData.map(obj => obj[colName]);
-  return filteredValues
+// Mark label area
+function markLabelArea(label, coordRange) {
+  option.markArea = {
+    itemStyle: { color : 'rgba(255, 173, 177, 0.4)' },
+    data: [{ name: label, xAxis: coordRange[0] }, { xAxis: coordRange[1] }]
+  };
+  cacheChart.setOption(option);
 }
 
 //--------------------- Main ---------------------------//
@@ -261,9 +271,13 @@ document.getElementById("placeholder-div").style.height = windowHeight + "px";
 // Read csv and get the data
 const formFile = document.getElementById('file-selector');
 formFile.addEventListener('change', function () {
-  getData()
+  getData(true)
     .then((data) => {
       generateList(data.columns);
+      cacheChart.clear();
+      option = JSON.parse(JSON.stringify(initOption));
+      cacheChart.setOption(initOption);
+      delColOptions(true);
     })
     .catch((error) => {
       console.error(error);
@@ -292,7 +306,7 @@ dropdownList.addEventListener('click', (event) => {
 // Add event listener to delete column option
 const deleteColButton = document.getElementById('del-column-btn');
 deleteColButton.addEventListener('click', () => {
-  delUncheckedCol();
+  delColOptions();
 });
 
 // Add event listener to modal ok button
@@ -305,7 +319,14 @@ addLabelButton.addEventListener('click', () => {
 const deleteLabelButton = document.getElementById('del-label-btn');
 deleteLabelButton.addEventListener('click', () => {
   delCheckedLabel();
+  cacheSelectedLabel = null;
 });
+
+// Update selected label
+const radioGroup = document.getElementById("radio-group");
+radioGroup.addEventListener('click', (event) => {
+  cacheSelectedLabel = event.target.id;
+})
 
 // Plot selected columns
 const checkboxGroup = document.getElementById("checkbox-group");
@@ -332,10 +353,14 @@ window.addEventListener('resize', function () {
 });
 
 // Get selected data using brush
-cacheChart.on('brushSelected', function (params) {
-  if (params.batch[0].areas.length > 0) {
-    var coordRange = params.batch[0].areas[0].coordRange;
-    var colName = params.batch[0].selected[0].seriesName;
-    getData().then((data) => console.log(filterData(data, colName, coordRange))).catch(console.error);
+cacheChart.on('brushEnd', function (params) {
+  console.log(params);
+  if (params.areas.length > 0) {
+    var coordRange = params.areas[0].coordRange;
+    let label;
+    if (cacheSelectedLabel !== null) {
+      label = cacheSelectedLabel.split("-")[1];
+    }
+    // markLabelArea(label, coordRange);
   }
 });
