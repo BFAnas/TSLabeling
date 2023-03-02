@@ -188,22 +188,26 @@ function plotColumn(colData, colName) {
   const yMax = isNumerical ? columnMax + margin : null;
   const numAxes = option.xAxis.length;
   cachePlotArea.style.width = `${Math.round(cacheWPerc * document.body.clientWidth)}px`;
-  cachePlotArea.style.height = `${(numAxes + 1) * Math.round(cacheHPerc * document.body.clientWidth)}px`;
-  const newGridHeight = parseInt(cacheGrid.height) / (numAxes + 1);
-  const newGridTop = parseInt(cacheGrid.top) / (numAxes + 1);
-  const newGridBottom = parseInt(cacheGrid.bottom) / (numAxes + 1);
-  console.log(option.grid);
+  cachePlotArea.style.height = `${(numAxes + 2) * Math.round(cacheHPerc * document.body.clientWidth)}px`;
+  const newGridHeight = parseInt(cacheGrid.height) / (numAxes + 2);
+  const newGridTop = parseInt(cacheGrid.top) / (numAxes + 2);
+  const newGridBottom = parseInt(cacheGrid.bottom) / (numAxes + 2);
   option.grid.push(Object.assign({}, cacheGrid));
   option.grid.forEach((obj, index) => {
     obj.height = `${newGridHeight}%`;
     obj.top = `${newGridTop + index * (newGridHeight + newGridTop + newGridBottom)}%`;
     obj.bottom = `${newGridBottom + (numAxes - index) * (newGridHeight + newGridTop + newGridBottom)}%`;
   });
-  option.dataZoom.forEach(obj => obj.xAxisIndex = Array.from({ length: numAxes + 1 }, (_, i) => i));
+  option.dataZoom.forEach((obj, index) => { 
+    obj.xAxisIndex = Array.from({ length: numAxes + 1 }, (_, i) => i);
+    if (index === 1) {
+      obj.top = `${(numAxes + 1) * (newGridHeight + newGridTop + newGridBottom)}%`;
+    }
+  });
   option.xAxis.push({ type: 'category', gridIndex: numAxes });
   option.yAxis.push({
     name: colName, nameTextStyle: { align: 'left' }, type: isNumerical ? 'value' : 'category',
-    min: yMin.toFixed(1), max: yMax.toFixed(1), gridIndex: numAxes 
+    min: yMin?.toFixed(1), max: yMax?.toFixed(1), gridIndex: numAxes 
   });
   option.series.push({ name: colName, data: colData, type: 'line', xAxisIndex: numAxes, yAxisIndex: numAxes });
   cacheChart.clear();
@@ -236,21 +240,23 @@ function delPlot(colName) {
   option.series.splice(idx, 1);
   option.grid.splice(idx, 1);
   const numAxes = option.xAxis.length;
-  if (numAxes > 0) {
-    const newGridHeight = parseInt(cacheGrid.height) / numAxes;
-    const newGridTop = parseInt(cacheGrid.top) / numAxes;
-    const newGridBottom = parseInt(cacheGrid.bottom) / numAxes;
-    option.grid.forEach((obj, index) => {
-      obj.height = `${newGridHeight}%`;
-      obj.top = `${newGridTop + index * (newGridHeight + newGridTop + newGridBottom)}%`;
-      obj.bottom = `${newGridBottom + (numAxes - index) * (newGridHeight + newGridTop)}%`;
-    });
-  } else {
-    option.grid = [Object.assign({}, cacheGrid)];
-  }
+  const newGridHeight = parseInt(cacheGrid.height) / (numAxes + 1);
+  const newGridTop = parseInt(cacheGrid.top) / (numAxes + 1);
+  const newGridBottom = parseInt(cacheGrid.bottom) / (numAxes + 1);
+  option.grid.forEach((obj, index) => {
+    obj.height = `${newGridHeight}%`;
+    obj.top = `${newGridTop + index * (newGridHeight + newGridTop + newGridBottom)}%`;
+    obj.bottom = `${newGridBottom + (numAxes - index) * (newGridHeight + newGridTop)}%`;
+  });
+  option.dataZoom.forEach((obj, index) => { 
+    obj.xAxisIndex = Array.from({ length: numAxes + 1 }, (_, i) => i);
+    if (index === 1) {
+      obj.top = `${numAxes * (newGridHeight + newGridTop + newGridBottom)}%`;
+    }
+  });
   cacheChart.clear();
   cacheChart.setOption(option);
-  cachePlotArea.style.height = `${numAxes * Math.round(cacheHPerc * document.body.clientWidth)}px`;
+  cachePlotArea.style.height = `${(numAxes + 1) * Math.round(cacheHPerc * document.body.clientWidth)}px`;
   cacheChart.resize();
 }
 
@@ -264,10 +270,6 @@ function markLabelArea(label, coordRange) {
 }
 
 //--------------------- Main ---------------------------//
-// Set placeholder div size
-var windowHeight = window.innerHeight;
-document.getElementById("placeholder-div").style.height = windowHeight + "px";
-
 // Read csv and get the data
 const formFile = document.getElementById('file-selector');
 formFile.addEventListener('change', function () {
