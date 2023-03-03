@@ -26,8 +26,8 @@ let initOption = {
   yAxis: [],
   series: [],
   dataZoom: [
-    { type: 'inside', realtime: true, start: 30, end: 70 }, 
-    { start: 30, end: 70 }
+    { type: 'inside', realtime: true }, 
+    { }
   ],
   grid: [{
     left: '5%',
@@ -39,7 +39,6 @@ let initOption = {
   toolbox: {
     right: '2%',
     feature: {
-      restore: { show: true, title: 'Restore' },
       dataView: { show: true, title: 'Data View', readOnly: true, lang: ['Data View', 'Close', 'Refresh'] },
       saveAsImage: { show: true, title: 'Save As Image', type: 'png' },
       dataZoom: { yAxisIndex: 'none' },
@@ -51,15 +50,12 @@ let initOption = {
   tooltip: { trigger: 'axis', axisPointer: { animation: false } },
   axisPointer: { link: [{ xAxisIndex: 'all' }] },
   brush: {
-    xAxisIndex: 'all',
-    brushLink: 'all',
-    outOfBrush: {
-      colorAlpha: 0.1
-    }
+    xAxisIndex: 0,
   },
 };
 let option = JSON.parse(JSON.stringify(initOption));
 cacheChart.setOption(option);
+const colorPalette = ['#c23531','#2f4554','#61a0a8','#d48265','#91c7ae','#749f83','#ca8622','#bda29a','#6e7074','#546570','#c4ccd3'];
 
 
 //--------------------- Functions ---------------------------//
@@ -202,6 +198,7 @@ function plotColumn(colData, colName) {
     obj.xAxisIndex = Array.from({ length: numAxes + 1 }, (_, i) => i);
     if (index === 1) {
       obj.top = `${(numAxes + 1) * (newGridHeight + newGridTop + newGridBottom)}%`;
+      obj.height = `${newGridHeight/3}%`;
     }
   });
   option.xAxis.push({ type: 'category', gridIndex: numAxes });
@@ -252,6 +249,7 @@ function delPlot(colName) {
     obj.xAxisIndex = Array.from({ length: numAxes + 1 }, (_, i) => i);
     if (index === 1) {
       obj.top = `${numAxes * (newGridHeight + newGridTop + newGridBottom)}%`;
+      obj.height = `${newGridHeight/3}%`;
     }
   });
   cacheChart.clear();
@@ -262,12 +260,13 @@ function delPlot(colName) {
 
 // Mark label area
 function markLabelArea(label, coordRange) {
-  option.markArea = {
-    itemStyle: { color : 'rgba(255, 173, 177, 0.4)' },
-    data: [{ name: label, xAxis: coordRange[0] }, { xAxis: coordRange[1] }]
-  };
-  cacheChart.setOption(option);
-}
+  if (option.series.length > 0) {
+    option.series[0].markArea = {
+      data: [[{ name: label, xAxis: coordRange[0], itemStyle: { color : label === 'Label 1'? 'rgba(255, 173, 177, 0.4)' : 'rgba(10, 255, 26, 0.4)' } }, { xAxis: coordRange[1] }]]
+    };
+    cacheChart.setOption(option);
+  }
+  }
 
 //--------------------- Main ---------------------------//
 // Read csv and get the data
@@ -327,6 +326,7 @@ deleteLabelButton.addEventListener('click', () => {
 // Update selected label
 const radioGroup = document.getElementById("radio-group");
 radioGroup.addEventListener('click', (event) => {
+  if (event.target.id.includes('btnradio'))
   cacheSelectedLabel = event.target.id;
 })
 
@@ -356,13 +356,12 @@ window.addEventListener('resize', function () {
 
 // Get selected data using brush
 cacheChart.on('brushEnd', function (params) {
-  console.log(params);
   if (params.areas.length > 0) {
     var coordRange = params.areas[0].coordRange;
     let label;
     if (cacheSelectedLabel !== null) {
       label = cacheSelectedLabel.split("-")[1];
+      markLabelArea(label, coordRange);
     }
-    // markLabelArea(label, coordRange);
   }
 });
