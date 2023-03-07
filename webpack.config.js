@@ -22,29 +22,49 @@ module.exports = {
   ],
   module: {
     rules: [
+      // SCSS ALL EXCEPT MODULES
       {
-        test: /\.(scss)$/,
+        test: /\.scss$/i,
+        exclude: /\.module\.scss$/i,
         use: [
           {
-            loader: 'style-loader'
+            loader: "style-loader",
           },
           {
-            loader: 'css-loader'
-          },
-          {
-            loader: 'postcss-loader',
+            loader: "css-loader",
             options: {
-              postcssOptions: {
-                plugins: () => [
-                  require('autoprefixer')
-                ]
-              }
-            }
+              importLoaders: 1,
+              modules: {
+                mode: "icss",
+              },
+            },
           },
           {
-            loader: 'sass-loader'
-          }
-        ]
+            loader: "sass-loader",
+          },
+        ],
+      },
+      // --------
+      // SCSS MODULES
+      {
+        test: /\.module\.scss$/i,
+        use: [
+          {
+            loader: "style-loader",
+          },
+          {
+            loader: "css-loader",
+            options: {
+              importLoaders: 1,
+              modules: {
+                mode: "local",
+              },
+            },
+          },
+          {
+            loader: "sass-loader",
+          },
+        ],
       },
       {
         test: /\.xml$/i,

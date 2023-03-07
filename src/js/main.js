@@ -1,5 +1,6 @@
 // Import our custom CSS
-import '../scss/styles.scss'
+import '../scss/styles.scss';
+import svars from '../scss/styles.scss';
 
 // Import libraries
 import * as bootstrap from 'bootstrap';
@@ -13,7 +14,7 @@ let cachePlotArea = document.getElementById('plots-area');
 cachePlotArea.classList.add('container-fluid');
 let cacheChart = echarts.init(cachePlotArea);
 const cacheWPerc = 0.95; // echartDom width
-const cacheHPerc = 0.2; // echartDom height
+const cacheHPerc = 0.1; // echartDom height
 let cacheGrid = {
   left: '5%',
   right: '2%',
@@ -55,8 +56,7 @@ let initOption = {
 };
 let option = JSON.parse(JSON.stringify(initOption));
 cacheChart.setOption(option);
-const colorPalette = ['#c23531','#2f4554','#61a0a8','#d48265','#91c7ae','#749f83','#ca8622','#bda29a','#6e7074','#546570','#c4ccd3'];
-
+let labelColors = {};
 
 //--------------------- Functions ---------------------------//
 // Read and parse a CSV file and pass the parsed data
@@ -105,11 +105,15 @@ function newLabelOption(option) {
   const radioGroup = document.getElementById("radio-group");
   const radio = document.getElementById(`btnradio-${option}`);
   if (!radio) {
+    // update labelColors object
+    const idx =  Object.keys(labelColors).length % svars.myColors.length;
+    labelColors[option] = svars.myColors[idx];
+    // create button
     const newradio = document.createElement("div");
     newradio.classList.add("p-1");
     newradio.innerHTML = `
           <input type="radio" class="btn-check" name="btnradio" id="btnradio-${option}" autocomplete="off">
-          <label class="btn btn-outline-primary rounded-pill" for="btnradio-${option}">${option}</label>
+          <label class="btn btn-outline rounded-pill my-btn-${idx+1}" for="btnradio-${option}">${option}</label>
         `;
     radioGroup.insertBefore(newradio, radioGroup.lastElementChild);
   }
@@ -140,12 +144,24 @@ function delColOptions(all = false) {
   }
 }
 
+// Clear uncheck columns options
+function uncheckColOptions() {
+  const checkboxGroup = document.getElementById("checkbox-group");
+  const checkboxesInput = checkboxGroup.querySelectorAll("input[type=checkbox]");
+  checkboxesInput.forEach((checkbox) => {
+    checkbox.checked = false;
+  });
+}
+
 // Delete button of label options
 function delCheckedLabel() {
   const radioGroup = document.getElementById("radio-group");
   const radiosInput = radioGroup.querySelectorAll("input[type=radio]");
+  const selectedRadio = document.querySelector('input[type="radio"]:checked');
+  const selectedLabel = document.querySelector('label[for="' + selectedRadio.id + '"]');
   for (let i = 0; i < radiosInput.length; i++) {
     if ((radiosInput[i].checked)) {
+      delete labelColors[selectedLabel];
       radiosInput[i].parentNode.remove();
     }
   }
@@ -197,13 +213,18 @@ function plotColumn(colData, colName) {
   option.dataZoom.forEach((obj, index) => { 
     obj.xAxisIndex = Array.from({ length: numAxes + 1 }, (_, i) => i);
     if (index === 1) {
-      obj.top = `${(numAxes + 1) * (newGridHeight + newGridTop + newGridBottom)}%`;
+      obj.top = `${(numAxes + 1) * (newGridHeight + newGridTop + newGridBottom) + newGridHeight/3}%`;
       obj.height = `${newGridHeight/3}%`;
     }
   });
   option.xAxis.push({ type: 'category', gridIndex: numAxes });
+  option.xAxis.forEach((obj, index) => {
+    if (index !== numAxes) {
+      obj.show = false;
+    }
+  })
   option.yAxis.push({
-    name: colName, nameTextStyle: { align: 'left' }, type: isNumerical ? 'value' : 'category',
+    name: colName, nameTextStyle: { align: 'left', verticalAlign: 'bottom'}, type: isNumerical ? 'value' : 'category',
     min: yMin?.toFixed(1), max: yMax?.toFixed(1), gridIndex: numAxes 
   });
   option.series.push({ name: colName, data: colData, type: 'line', xAxisIndex: numAxes, yAxisIndex: numAxes });
@@ -258,12 +279,34 @@ function delPlot(colName) {
   cacheChart.resize();
 }
 
+// Plot selected columns
+function plotSelectedCols() {
+  const checkboxGroup = document.getElementById("checkbox-group");
+  checkboxGroup.addEventListener('click', (event) => {
+    const checkbox = event.target;
+    const colName = checkbox.value;
+    if (checkbox.checked === true) {
+      console.log(`${colName} checkbox checked ${checkbox.checked}`);
+      getData()
+        .then((data) => plotColumn(data.map(obj => obj[colName]), colName))
+        .catch(console.error);
+    } else if (checkbox.checked === false) {
+      console.log(`${colName} checkbox checked ${checkbox.checked}`);
+      delPlot(colName);
+    }
+  });
+}
+
 // Mark label area
 function markLabelArea(label, coordRange) {
   if (option.series.length > 0) {
-    option.series[0].markArea = {
-      data: [[{ name: label, xAxis: coordRange[0], itemStyle: { color : label === 'Label 1'? 'rgba(255, 173, 177, 0.4)' : 'rgba(10, 255, 26, 0.4)' } }, { xAxis: coordRange[1] }]]
-    };
+    if (option.series[0].markArea) {
+      option.series[0].markArea.data.push([{ xAxis: coordRange[0], itemStyle: { color : labelColors[label] } }, { xAxis: coordRange[1] }])
+    } else {
+      option.series[0].markArea = {
+        data: [[{ xAxis: coordRange[0], itemStyle: { color : labelColors[label] } }, { xAxis: coordRange[1] }]]
+      };
+    }
     cacheChart.setOption(option);
   }
   }
@@ -278,7 +321,8 @@ formFile.addEventListener('change', function () {
       cacheChart.clear();
       option = JSON.parse(JSON.stringify(initOption));
       cacheChart.setOption(initOption);
-      delColOptions(true);
+      uncheckColOptions();
+      // delColOptions(true);
     })
     .catch((error) => {
       console.error(error);
@@ -331,20 +375,7 @@ radioGroup.addEventListener('click', (event) => {
 })
 
 // Plot selected columns
-const checkboxGroup = document.getElementById("checkbox-group");
-checkboxGroup.addEventListener('click', (event) => {
-  const checkbox = event.target;
-  const colName = checkbox.value;
-  if (checkbox.checked === true) {
-    console.log(`${colName} checkbox checked ${checkbox.checked}`);
-    getData()
-      .then((data) => plotColumn(data.map(obj => obj[colName]), colName))
-      .catch(console.error);
-  } else if (checkbox.checked === false) {
-    console.log(`${colName} checkbox checked ${checkbox.checked}`);
-    delPlot(colName);
-  }
-});
+plotSelectedCols();
 
 // Resize the chart when the window is resized
 window.addEventListener('resize', function () {

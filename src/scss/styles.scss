@@ -1,21 +1,33 @@
 // Import all of Bootstrap's CSS
 @import "~bootstrap/scss/bootstrap";
 
-.sidebar {
-    background-color: #f8f9fa;
-    padding: 20px;
-    border-right: 1px solid #e1e1e1;
-  }
+.main-content {
+  padding: 20px;
+}
 
-  .main-content {
-    padding: 20px;
-  }
+.my-div {
+  padding: 0;
+}
 
-  /* Hides the sidebar by default */
-  .sidebar-hide {
-    display: none;
-  }
+$my-colors: (
+  "my-color-1": #3cb44d,
+  "my-color-2": #e6194b,
+  "my-color-3": #4363d8,
+  "my-color-4": #ffe119,
+  "my-color-5": #f58231,
+  "my-color-6": #911eb4,
+  "my-color-7": #46f0f0,
+  "my-color-8": #f032e6
+);
 
-  .my-div {
-    padding: 0;
+:export {
+  myColors: map-values($my-colors);
+}
+
+$btn-count: length($my-colors);
+
+@for $i from 1 through $btn-count {
+  .my-btn-#{$i} {
+    @include button-outline-variant(map-get($my-colors, "my-color-#{$i}"));
   }
+}
