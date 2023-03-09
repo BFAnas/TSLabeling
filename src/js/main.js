@@ -9,12 +9,13 @@ import * as echarts from 'echarts';
 
 //--------------------- Cached variables ---------------------------//
 let data;
+let outData;
 let cacheSelectedLabel = null;
 let cachePlotArea = document.getElementById('plots-area');
 cachePlotArea.classList.add('container-fluid');
 let cacheChart = echarts.init(cachePlotArea);
 const cacheWPerc = 0.95; // echartDom width
-const cacheHPerc = 0.1; // echartDom height
+let cacheHPerc = 0.10; // echartDom height
 let cacheGrid = {
   left: '5%',
   right: '2%',
@@ -27,8 +28,8 @@ let initOption = {
   yAxis: [],
   series: [],
   dataZoom: [
-    { type: 'inside', realtime: true }, 
-    { }
+    { type: 'inside', realtime: true },
+    {}
   ],
   grid: [{
     left: '5%',
@@ -56,9 +57,62 @@ let initOption = {
 };
 let option = JSON.parse(JSON.stringify(initOption));
 cacheChart.setOption(option);
-let labelColors = {};
+let cacheLabelColors = {};
+const cacheMyColors = svars.myColors.split(", ")
+
+const breakpoints = {
+  xs: window.matchMedia("(max-width: 575.98px)"),
+  sm: window.matchMedia("(min-width: 576px) and (max-width: 767.98px)"),
+  md: window.matchMedia("(min-width: 768px) and (max-width: 991.98px)"),
+  lg: window.matchMedia("(min-width: 992px) and (max-width: 1199.98px)"),
+  xl: window.matchMedia("(min-width: 1200px) and (max-width: 1399.98px)"),
+  xxl: window.matchMedia("(min-width: 1400px)"),
+};
 
 //--------------------- Functions ---------------------------//
+// update cacheHperc
+function updateHPerc(breakpoint) {
+  switch (breakpoint) {
+    case "xs":
+      cacheHPerc = 0.4;
+      break;
+    case "sm":
+      cacheHPerc = 0.35;
+      break;
+    case "md":
+      cacheHPerc = 0.25;
+      break;
+    case "lg":
+      cacheHPerc = 0.2;
+      break;
+    case "xl":
+      cacheHPerc = 0.15;
+      break;
+    case "xxl":
+      cacheHPerc = 0.1;
+      break;
+    default:
+      break;
+  }
+  console.log(`cacheHPerc is now ${cacheHPerc}`);
+}
+
+function initHPerc() {
+  Object.keys(breakpoints).forEach((breakpoint) => {
+    breakpoints[breakpoint].addEventListener("change", () => {
+      if (breakpoints[breakpoint].matches) {
+        updateHPerc(breakpoint);
+      }
+    });
+  });
+
+  Object.keys(breakpoints).forEach((breakpoint) => {
+    if (breakpoints[breakpoint].matches) {
+      updateHPerc(breakpoint);
+    }
+  });
+}
+
 // Read and parse a CSV file and pass the parsed data
 function getData(read = false) {
   return new Promise((resolve, reject) => {
@@ -105,28 +159,28 @@ function newLabelOption(option) {
   const radioGroup = document.getElementById("radio-group");
   const radio = document.getElementById(`btnradio-${option}`);
   if (!radio) {
-    // update labelColors object
-    const idx =  Object.keys(labelColors).length % svars.myColors.length;
-    labelColors[option] = svars.myColors[idx];
+    // update cacheLabelColors object
+    const idx = Object.keys(cacheLabelColors).length % cacheMyColors.length;
+    cacheLabelColors[option] = cacheMyColors[idx];
     // create button
     const newradio = document.createElement("div");
     newradio.classList.add("p-1");
     newradio.innerHTML = `
           <input type="radio" class="btn-check" name="btnradio" id="btnradio-${option}" autocomplete="off">
-          <label class="btn btn-outline rounded-pill my-btn-${idx+1}" for="btnradio-${option}">${option}</label>
+          <label class="btn btn-outline rounded-pill my-btn-${idx + 1}" for="btnradio-${option}">${option}</label>
         `;
     radioGroup.insertBefore(newradio, radioGroup.lastElementChild);
   }
 }
 
 // Handle modal ok button
-const myModal = new bootstrap.Modal(document.getElementById("myModal"));
+const labelModal = new bootstrap.Modal(document.getElementById("labelModal"));
 function handleModalSubmit() {
   const userInput = document.getElementById("labelTextInput").value;
   if (userInput.trim() !== '') {
     newLabelOption(userInput);
     // Hide the modal
-    myModal.hide();
+    labelModal.hide();
   } else {
     // User did not enter any text
     alert("Please enter some text");
@@ -138,7 +192,7 @@ function delColOptions(all = false) {
   const checkboxGroup = document.getElementById("checkbox-group");
   const checkboxesInput = checkboxGroup.querySelectorAll("input[type=checkbox]");
   for (let i = 0; i < checkboxesInput.length; i++) {
-    if (!all? !(checkboxesInput[i].checked) : true) {
+    if (!all ? !(checkboxesInput[i].checked) : true) {
       checkboxesInput[i].parentNode.remove();
     }
   }
@@ -161,7 +215,7 @@ function delCheckedLabel() {
   const selectedLabel = document.querySelector('label[for="' + selectedRadio.id + '"]');
   for (let i = 0; i < radiosInput.length; i++) {
     if ((radiosInput[i].checked)) {
-      delete labelColors[selectedLabel];
+      delete cacheLabelColors[selectedLabel];
       radiosInput[i].parentNode.remove();
     }
   }
@@ -210,11 +264,11 @@ function plotColumn(colData, colName) {
     obj.top = `${newGridTop + index * (newGridHeight + newGridTop + newGridBottom)}%`;
     obj.bottom = `${newGridBottom + (numAxes - index) * (newGridHeight + newGridTop + newGridBottom)}%`;
   });
-  option.dataZoom.forEach((obj, index) => { 
+  option.dataZoom.forEach((obj, index) => {
     obj.xAxisIndex = Array.from({ length: numAxes + 1 }, (_, i) => i);
     if (index === 1) {
-      obj.top = `${(numAxes + 1) * (newGridHeight + newGridTop + newGridBottom) + newGridHeight/3}%`;
-      obj.height = `${newGridHeight/3}%`;
+      obj.top = `${(numAxes + 1) * (newGridHeight + newGridTop + newGridBottom) + newGridHeight / 3}%`;
+      obj.height = `${newGridHeight / 3}%`;
     }
   });
   option.xAxis.push({ type: 'category', gridIndex: numAxes });
@@ -224,8 +278,8 @@ function plotColumn(colData, colName) {
     }
   })
   option.yAxis.push({
-    name: colName, nameTextStyle: { align: 'left', verticalAlign: 'bottom'}, type: isNumerical ? 'value' : 'category',
-    min: yMin?.toFixed(1), max: yMax?.toFixed(1), gridIndex: numAxes 
+    name: colName, nameTextStyle: { align: 'left', verticalAlign: 'bottom' }, type: isNumerical ? 'value' : 'category',
+    min: yMin?.toFixed(1), max: yMax?.toFixed(1), gridIndex: numAxes
   });
   option.series.push({ name: colName, data: colData, type: 'line', xAxisIndex: numAxes, yAxisIndex: numAxes });
   cacheChart.clear();
@@ -266,11 +320,11 @@ function delPlot(colName) {
     obj.top = `${newGridTop + index * (newGridHeight + newGridTop + newGridBottom)}%`;
     obj.bottom = `${newGridBottom + (numAxes - index) * (newGridHeight + newGridTop)}%`;
   });
-  option.dataZoom.forEach((obj, index) => { 
+  option.dataZoom.forEach((obj, index) => {
     obj.xAxisIndex = Array.from({ length: numAxes + 1 }, (_, i) => i);
     if (index === 1) {
       obj.top = `${numAxes * (newGridHeight + newGridTop + newGridBottom)}%`;
-      obj.height = `${newGridHeight/3}%`;
+      obj.height = `${newGridHeight / 3}%`;
     }
   });
   cacheChart.clear();
@@ -299,24 +353,30 @@ function plotSelectedCols() {
 
 // Mark label area
 function markLabelArea(label, coordRange) {
+  const labelArray = new Array(coordRange[1] - coordRange[0]).fill(label);
+  outData.splice(coordRange[0], coordRange[1] - coordRange[0], ...labelArray); 
+  console.log(outData);
   if (option.series.length > 0) {
     if (option.series[0].markArea) {
-      option.series[0].markArea.data.push([{ xAxis: coordRange[0], itemStyle: { color : labelColors[label] } }, { xAxis: coordRange[1] }])
+      option.series[0].markArea.data.push([{ xAxis: coordRange[0], itemStyle: { color: cacheLabelColors[label], opacity: 0.5 } }, { xAxis: coordRange[1] }])
     } else {
       option.series[0].markArea = {
-        data: [[{ xAxis: coordRange[0], itemStyle: { color : labelColors[label] } }, { xAxis: coordRange[1] }]]
+        data: [[{ xAxis: coordRange[0], itemStyle: { color: cacheLabelColors[label], opacity: 0.5 } }, { xAxis: coordRange[1] }]]
       };
     }
     cacheChart.setOption(option);
   }
-  }
+}
 
 //--------------------- Main ---------------------------//
+initHPerc();
+
 // Read csv and get the data
 const formFile = document.getElementById('file-selector');
 formFile.addEventListener('change', function () {
   getData(true)
     .then((data) => {
+      outData = new Array(data.length).fill(null);;
       generateList(data.columns);
       cacheChart.clear();
       option = JSON.parse(JSON.stringify(initOption));
@@ -355,12 +415,12 @@ deleteColButton.addEventListener('click', () => {
 });
 
 // Add event listener to modal ok button
-const addLabelButton = document.getElementById('modal-ok-btn');
+const addLabelButton = document.getElementById('label-modal-ok-btn');
 addLabelButton.addEventListener('click', () => {
   handleModalSubmit();
 });
 
-// Add event listener to delete column option
+// Add event listener to delete label option
 const deleteLabelButton = document.getElementById('del-label-btn');
 deleteLabelButton.addEventListener('click', () => {
   delCheckedLabel();
@@ -371,7 +431,7 @@ deleteLabelButton.addEventListener('click', () => {
 const radioGroup = document.getElementById("radio-group");
 radioGroup.addEventListener('click', (event) => {
   if (event.target.id.includes('btnradio'))
-  cacheSelectedLabel = event.target.id;
+    cacheSelectedLabel = event.target.id;
 })
 
 // Plot selected columns
@@ -380,8 +440,9 @@ plotSelectedCols();
 // Resize the chart when the window is resized
 window.addEventListener('resize', function () {
   const numAxes = option.xAxis.length;
+  initHPerc();
   cachePlotArea.style.width = `${Math.round(cacheWPerc * document.body.clientWidth)}px`;
-  cachePlotArea.style.height = `${numAxes * Math.round(cacheHPerc * document.body.clientWidth)}px`;
+  cachePlotArea.style.height = `${(numAxes + 1) * Math.round(cacheHPerc * document.body.clientWidth)}px`;
   cacheChart.resize();
 });
 
