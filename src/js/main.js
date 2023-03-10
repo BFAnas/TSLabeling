@@ -10,6 +10,7 @@ import * as echarts from 'echarts';
 //--------------------- Cached variables ---------------------------//
 let data;
 let outData;
+let SPPV;
 let cacheSelectedLabel = null;
 let cachePlotArea = document.getElementById('plots-area');
 cachePlotArea.classList.add('container-fluid');
@@ -173,9 +174,9 @@ function newLabelOption(option) {
   }
 }
 
-// Handle modal ok button
+// Handle label modal ok button
 const labelModal = new bootstrap.Modal(document.getElementById("labelModal"));
-function handleModalSubmit() {
+function handleLabelModalSubmit() {
   const userInput = document.getElementById("labelTextInput").value;
   if (userInput.trim() !== '') {
     newLabelOption(userInput);
@@ -185,6 +186,12 @@ function handleModalSubmit() {
     // User did not enter any text
     alert("Please enter some text");
   }
+}
+
+// Handle column modal ok button
+function handleColumnModalSubmit() {
+  const columnModal = new bootstrap.Modal(document.getElementById("columnModal"));
+  columnModal.hide();
 }
 
 // Delete button of column options (either all or only unchecked)
@@ -244,8 +251,22 @@ function generateList(columns) {
   });
 }
 
+// Generate modal columns list 
+function generateModalList(columns) {
+  const dropdownList = document.getElementById('modal-dropdown-list');
+  dropdownList.innerHTML = "";
+  if (!columns) return console.log('Columns parameter is null.');
+  columns.forEach((option) => {
+    const listItem = document.createElement('button');
+    listItem.classList.add('list-group-item', 'list-group-item-action', 'd-flex', 'justify-content-between');
+    listItem.textContent = option;
+    dropdownList.appendChild(listItem);
+  });
+}
+
 // Plot column in shared chart
 function plotColumn(colData, colName) {
+  if (colData.every(item => typeof item === 'undefined')) {return};
   const isNumerical = colData.every(element => !isNaN(element));
   const columnMin = isNumerical ? Math.min(...colData) : null;
   const columnMax = isNumerical ? Math.max(...colData) : null;
@@ -340,12 +361,10 @@ function plotSelectedCols() {
     const checkbox = event.target;
     const colName = checkbox.value;
     if (checkbox.checked === true) {
-      console.log(`${colName} checkbox checked ${checkbox.checked}`);
       getData()
         .then((data) => plotColumn(data.map(obj => obj[colName]), colName))
         .catch(console.error);
     } else if (checkbox.checked === false) {
-      console.log(`${colName} checkbox checked ${checkbox.checked}`);
       delPlot(colName);
     }
   });
@@ -354,7 +373,7 @@ function plotSelectedCols() {
 // Mark label area
 function markLabelArea(label, coordRange) {
   const labelArray = new Array(coordRange[1] - coordRange[0]).fill(label);
-  outData.splice(coordRange[0], coordRange[1] - coordRange[0], ...labelArray); 
+  outData.splice(coordRange[0], coordRange[1] - coordRange[0], ...labelArray);
   console.log(outData);
   if (option.series.length > 0) {
     if (option.series[0].markArea) {
@@ -378,6 +397,7 @@ formFile.addEventListener('change', function () {
     .then((data) => {
       outData = new Array(data.length).fill(null);;
       generateList(data.columns);
+      generateModalList(data.columns);
       cacheChart.clear();
       option = JSON.parse(JSON.stringify(initOption));
       cacheChart.setOption(initOption);
@@ -404,8 +424,25 @@ document.addEventListener('click', (event) => {
 // Add event listener to update optionsList
 dropdownList.addEventListener('click', (event) => {
   const clickedButton = event.target.closest('.list-group-item');
+  const checkbox = document.getElementById("SP");
   var option = clickedButton.textContent;
   newColOption(option);
+  if (checkbox.checked) {
+    const columnModal = new bootstrap.Modal(document.getElementById("columnModal"));
+    columnModal.show();
+    const modalList = document.getElementById('modal-list');
+    modalList.addEventListener('click', (event) => {
+      const clickedColumn = event.target.closest('.list-group-item');
+      var column = clickedColumn.textContent;
+      SPPV[option] = column;
+      columnModal.hide();
+    });
+    const okButton = document.getElementById('column-modal-ok-btn');
+    okButton.addEventListener('click', () => {
+      columnModal.hide();
+    });
+    checkbox.checked = false;
+  }
 });
 
 // Add event listener to delete column option
@@ -417,7 +454,7 @@ deleteColButton.addEventListener('click', () => {
 // Add event listener to modal ok button
 const addLabelButton = document.getElementById('label-modal-ok-btn');
 addLabelButton.addEventListener('click', () => {
-  handleModalSubmit();
+  handleLabelModalSubmit();
 });
 
 // Add event listener to delete label option
