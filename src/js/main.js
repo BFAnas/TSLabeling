@@ -10,7 +10,7 @@ import * as echarts from 'echarts';
 //--------------------- Cached variables ---------------------------//
 let data;
 let outData;
-let SPPV;
+let SpPv = {};
 let cacheSelectedLabel = null;
 let cachePlotArea = document.getElementById('plots-area');
 cachePlotArea.classList.add('container-fluid');
@@ -427,9 +427,10 @@ dropdownList.addEventListener('click', (event) => {
     const modalList = document.getElementById('modal-list');
     modalList.addEventListener('click', (event) => {
       const clickedColumn = event.target.closest('.list-group-item');
+      clickedColumn.classList.add("active");
       var column = clickedColumn.textContent;
-      SPPV[option] = column;
-      columnModal.hide();
+      SpPv[option] = column;
+      console.log(SpPv)
     });
     const okButton = document.getElementById('column-modal-ok-btn');
     okButton.addEventListener('click', () => {
