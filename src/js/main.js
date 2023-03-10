@@ -188,12 +188,6 @@ function handleLabelModalSubmit() {
   }
 }
 
-// Handle column modal ok button
-function handleColumnModalSubmit() {
-  const columnModal = new bootstrap.Modal(document.getElementById("columnModal"));
-  columnModal.hide();
-}
-
 // Delete button of column options (either all or only unchecked)
 function delColOptions(all = false) {
   const checkboxGroup = document.getElementById("checkbox-group");
@@ -253,7 +247,7 @@ function generateList(columns) {
 
 // Generate modal columns list 
 function generateModalList(columns) {
-  const dropdownList = document.getElementById('modal-dropdown-list');
+  const dropdownList = document.getElementById('modal-list');
   dropdownList.innerHTML = "";
   if (!columns) return console.log('Columns parameter is null.');
   columns.forEach((option) => {
@@ -422,13 +416,13 @@ document.addEventListener('click', (event) => {
 });
 
 // Add event listener to update optionsList
+const columnModal = new bootstrap.Modal(document.getElementById("columnModal"));
 dropdownList.addEventListener('click', (event) => {
   const clickedButton = event.target.closest('.list-group-item');
   const checkbox = document.getElementById("SP");
   var option = clickedButton.textContent;
   newColOption(option);
   if (checkbox.checked) {
-    const columnModal = new bootstrap.Modal(document.getElementById("columnModal"));
     columnModal.show();
     const modalList = document.getElementById('modal-list');
     modalList.addEventListener('click', (event) => {
