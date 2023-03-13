@@ -267,36 +267,44 @@ function plotColumn(colData, colName) {
   const margin = isNumerical ? 0.1 * (columnMax - columnMin) : null;
   const yMin = isNumerical ? columnMin - margin : null;
   const yMax = isNumerical ? columnMax + margin : null;
-  const numAxes = option.xAxis.length;
-  cachePlotArea.style.width = `${Math.round(cacheWPerc * document.body.clientWidth)}px`;
-  cachePlotArea.style.height = `${(numAxes + 2) * Math.round(cacheHPerc * document.body.clientWidth)}px`;
-  const newGridHeight = parseInt(cacheGrid.height) / (numAxes + 2);
-  const newGridTop = parseInt(cacheGrid.top) / (numAxes + 2);
-  const newGridBottom = parseInt(cacheGrid.bottom) / (numAxes + 2);
-  option.grid.push(Object.assign({}, cacheGrid));
-  option.grid.forEach((obj, index) => {
-    obj.height = `${newGridHeight}%`;
-    obj.top = `${newGridTop + index * (newGridHeight + newGridTop + newGridBottom)}%`;
-    obj.bottom = `${newGridBottom + (numAxes - index) * (newGridHeight + newGridTop + newGridBottom)}%`;
-  });
-  option.dataZoom.forEach((obj, index) => {
-    obj.xAxisIndex = Array.from({ length: numAxes + 1 }, (_, i) => i);
-    if (index === 1) {
-      obj.top = `${(numAxes + 1) * (newGridHeight + newGridTop + newGridBottom) + newGridHeight / 3}%`;
-      obj.height = `${newGridHeight / 3}%`;
-    }
-  });
-  option.xAxis.push({ type: 'category', gridIndex: numAxes });
-  option.xAxis.forEach((obj, index) => {
-    if (index !== numAxes) {
-      obj.show = false;
-    }
-  })
-  option.yAxis.push({
-    name: colName, nameTextStyle: { align: 'left', verticalAlign: 'bottom' }, type: isNumerical ? 'value' : 'category',
-    min: yMin?.toFixed(1), max: yMax?.toFixed(1), gridIndex: numAxes
-  });
-  option.series.push({ name: colName, data: colData, type: 'line', xAxisIndex: numAxes, yAxisIndex: numAxes });
+  if (SpPv.hasOwnProperty(colName)) {
+    option.yAxis.forEach((obj, index) => {
+      if (obj.name === SpPv[colName]) {
+        option.series.push({ name: colName, data: colData, type: 'line', xAxisIndex: index, yAxisIndex: index});
+      }
+    });
+  } else {
+    const numAxes = option.xAxis.length;
+    cachePlotArea.style.width = `${Math.round(cacheWPerc * document.body.clientWidth)}px`;
+    cachePlotArea.style.height = `${(numAxes + 2) * Math.round(cacheHPerc * document.body.clientWidth)}px`;
+    const newGridHeight = parseInt(cacheGrid.height) / (numAxes + 2);
+    const newGridTop = parseInt(cacheGrid.top) / (numAxes + 2);
+    const newGridBottom = parseInt(cacheGrid.bottom) / (numAxes + 2);
+    option.grid.push(Object.assign({}, cacheGrid));
+    option.grid.forEach((obj, index) => {
+      obj.height = `${newGridHeight}%`;
+      obj.top = `${newGridTop + index * (newGridHeight + newGridTop + newGridBottom)}%`;
+      obj.bottom = `${newGridBottom + (numAxes - index) * (newGridHeight + newGridTop + newGridBottom)}%`;
+    });
+    option.dataZoom.forEach((obj, index) => {
+      obj.xAxisIndex = Array.from({ length: numAxes + 1 }, (_, i) => i);
+      if (index === 1) {
+        obj.top = `${(numAxes + 1) * (newGridHeight + newGridTop + newGridBottom) + newGridHeight / 3}%`;
+        obj.height = `${newGridHeight / 3}%`;
+      }
+    });
+    option.xAxis.push({ type: 'category', gridIndex: numAxes });
+    option.xAxis.forEach((obj, index) => {
+      if (index !== numAxes) {
+        obj.show = false;
+      }
+    })
+    option.yAxis.push({
+      name: colName, nameTextStyle: { align: 'left', verticalAlign: 'bottom' }, type: isNumerical ? 'value' : 'category',
+      min: yMin?.toFixed(1), max: yMax?.toFixed(1), gridIndex: numAxes
+    });
+    option.series.push({ name: colName, data: colData, type: 'line', xAxisIndex: numAxes, yAxisIndex: numAxes });
+  }
   cacheChart.clear();
   cacheChart.setOption(option);
   cacheChart.resize();
@@ -317,34 +325,39 @@ function delPlot(colName) {
     return;
   }
   const idx = option.yAxis.findIndex(obj => obj.name === colName);
-  // change the grid index for plots with indices greater than idx
-  option.xAxis.forEach((obj, index) => { if (index > idx) { obj.gridIndex -= 1 } });
-  option.yAxis.forEach((obj, index) => { if (index > idx) { obj.gridIndex -= 1 } });
-  option.series.forEach((obj, index) => { if (index > idx) { obj.xAxisIndex -= 1; obj.yAxisIndex -= 1 } });
-  // delete plot
-  option.xAxis.splice(idx, 1);
-  option.yAxis.splice(idx, 1);
-  option.series.splice(idx, 1);
-  option.grid.splice(idx, 1);
-  const numAxes = option.xAxis.length;
-  const newGridHeight = parseInt(cacheGrid.height) / (numAxes + 1);
-  const newGridTop = parseInt(cacheGrid.top) / (numAxes + 1);
-  const newGridBottom = parseInt(cacheGrid.bottom) / (numAxes + 1);
-  option.grid.forEach((obj, index) => {
-    obj.height = `${newGridHeight}%`;
-    obj.top = `${newGridTop + index * (newGridHeight + newGridTop + newGridBottom)}%`;
-    obj.bottom = `${newGridBottom + (numAxes - index) * (newGridHeight + newGridTop)}%`;
-  });
-  option.dataZoom.forEach((obj, index) => {
-    obj.xAxisIndex = Array.from({ length: numAxes + 1 }, (_, i) => i);
-    if (index === 1) {
-      obj.top = `${numAxes * (newGridHeight + newGridTop + newGridBottom)}%`;
-      obj.height = `${newGridHeight / 3}%`;
-    }
-  });
+  if (SpPv.hasOwnProperty(colName)) {
+    option.series.splice(idx, 1);
+  }
+  else {
+    // change the grid index for plots with indices greater than idx
+    option.xAxis.forEach((obj, index) => { if (index > idx) { obj.gridIndex -= 1 } });
+    option.yAxis.forEach((obj, index) => { if (index > idx) { obj.gridIndex -= 1 } });
+    option.series.forEach((obj, index) => { if (index > idx) { obj.xAxisIndex -= 1; obj.yAxisIndex -= 1 } });
+    // delete plot
+    option.xAxis.splice(idx, 1);
+    option.yAxis.splice(idx, 1);
+    option.series.splice(idx, 1);
+    option.grid.splice(idx, 1);
+    const numAxes = option.xAxis.length;
+    const newGridHeight = parseInt(cacheGrid.height) / (numAxes + 1);
+    const newGridTop = parseInt(cacheGrid.top) / (numAxes + 1);
+    const newGridBottom = parseInt(cacheGrid.bottom) / (numAxes + 1);
+    option.grid.forEach((obj, index) => {
+      obj.height = `${newGridHeight}%`;
+      obj.top = `${newGridTop + index * (newGridHeight + newGridTop + newGridBottom)}%`;
+      obj.bottom = `${newGridBottom + (numAxes - index) * (newGridHeight + newGridTop)}%`;
+    });
+    option.dataZoom.forEach((obj, index) => {
+      obj.xAxisIndex = Array.from({ length: numAxes + 1 }, (_, i) => i);
+      if (index === 1) {
+        obj.top = `${numAxes * (newGridHeight + newGridTop + newGridBottom)}%`;
+        obj.height = `${newGridHeight / 3}%`;
+      }
+    });
+    cachePlotArea.style.height = `${(numAxes + 1) * Math.round(cacheHPerc * document.body.clientWidth)}px`;
+  }
   cacheChart.clear();
   cacheChart.setOption(option);
-  cachePlotArea.style.height = `${(numAxes + 1) * Math.round(cacheHPerc * document.body.clientWidth)}px`;
   cacheChart.resize();
 }
 
