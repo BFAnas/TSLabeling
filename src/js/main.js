@@ -478,37 +478,46 @@ document.addEventListener('click', (event) => {
   }
 });
 
-// Add event listener to update optionsList
+// SP modal
+// 1
 const columnModal = new bootstrap.Modal(document.getElementById("columnModal"));
-let selectedColumn; 
+let selectedColumn;
+let clickedColumn;
 dropdownList.addEventListener('click', (event) => {
   const clickedButton = event.target.closest('.list-group-item');
   const checkbox = document.getElementById("SP");
-  const erroBound = document.getElementById("error-bound-input").value;
   selectedColumn = clickedButton.textContent;
   if (checkbox.checked) {
     columnModal.show();
-    const modalList = document.getElementById('modal-list');
-    let clickedColumn;
-    modalList.addEventListener('click', (event) => {
-      clickedColumn = event.target.closest('.list-group-item');
-      if (clickedColumn.classList.contains("active")) {
-        clickedColumn.classList.remove("active");
-      } else {
-        clickedColumn.classList.add("active");
-        const column = clickedColumn.textContent;
-        SpPv[selectedColumn] = {"PV": column, error: erroBound};
-      }
-    });
-    const okButton = document.getElementById('column-modal-ok-btn');
-    okButton.addEventListener('click', () => {
-      clickedColumn.classList.remove("active");
-      columnModal.hide();
-    });
     checkbox.checked = false;
+  } else {
+    newColOption(selectedColumn);
   }
-  newColOption(selectedColumn);
 });
+// 2
+const modalList = document.getElementById('modal-list');
+modalList.addEventListener('click', (event) => {
+  const erroBound = document.getElementById("error-bound-input").value;
+  clickedColumn = event.target.closest('.list-group-item');
+  if (clickedColumn.classList.contains("active")) {
+    clickedColumn.classList.remove("active");
+  } else {
+    console.log("Button active");
+    clickedColumn.classList.add("active");
+    const column = clickedColumn.textContent;
+    SpPv[selectedColumn] = {"PV": column, error: erroBound};
+  }
+});
+// 3
+const okButton = document.getElementById('column-modal-ok-btn');
+okButton.addEventListener('click', () => {
+  columnModal.hide();
+  newColOption(selectedColumn);
+  if (clickedColumn) {
+    clickedColumn.classList.remove("active");
+  }
+});
+
 
 // Add event listener to delete column option
 const deleteColButton = document.getElementById('del-column-btn');
@@ -559,17 +568,3 @@ cacheChart.on('brushEnd', function (params) {
     }
   }
 });
-
-// // Activate/deactivate SP buttons
-// for (const SP in SpPv) {
-//   const myCheckbox = document.getElementById(`checkbox-${SpPv[SP].PV}`);
-//   const myButton = document.getElementById(`checkbox-${SP}`);
-
-//   myCheckbox.addEventListener("change", function() {
-//     if (this.checked) {
-//       myButton.disabled = false;
-//     } else {
-//       myButton.disabled = true;
-//     }
-//   });
-// }
