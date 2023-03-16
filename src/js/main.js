@@ -11,6 +11,7 @@ import * as echarts from 'echarts';
 let data;
 let outData;
 let SpPv = {};
+let plottedColumns = [];
 let cacheSelectedLabel = null;
 let cachePlotArea = document.getElementById('plots-area');
 cachePlotArea.classList.add('container-fluid');
@@ -191,7 +192,7 @@ function handleLabelModalSubmit() {
 // Delete button of column options (either all or only unchecked)
 function delColOptions(all = false) {
   const checkboxGroup = document.getElementById("checkbox-group");
-  const checkboxesInput = checkboxGroup.querySelectorAll("input[type=checkbox]");
+  const checkboxesInput = checkboxGroup.querySelectorAll("input[type=checkbox]:not(#SP)");
   for (let i = 0; i < checkboxesInput.length; i++) {
     if (!all ? !(checkboxesInput[i].checked) : true) {
       checkboxesInput[i].parentNode.remove();
@@ -202,9 +203,22 @@ function delColOptions(all = false) {
 // Clear uncheck columns options
 function uncheckColOptions() {
   const checkboxGroup = document.getElementById("checkbox-group");
-  const checkboxesInput = checkboxGroup.querySelectorAll("input[type=checkbox]");
+  const checkboxesInput = checkboxGroup.querySelectorAll("input[type=checkbox]:not(#SP)");
   checkboxesInput.forEach((checkbox) => {
     checkbox.checked = false;
+  });
+}
+
+// update the check of columns options
+function updateColOptions() {
+  const checkboxGroup = document.getElementById("checkbox-group");
+  const checkboxesInput = checkboxGroup.querySelectorAll("input[type=checkbox]:not(#SP)");
+  checkboxesInput.forEach((checkbox) => {
+    if (plottedColumns.includes(checkbox.value)) {
+      checkbox.checked = true;
+    } else {
+      checkbox.checked = false;
+    }
   });
 }
 
@@ -259,7 +273,8 @@ function generateModalList(columns) {
 }
 
 // Plot column in shared chart
-function plotColumn(colData, colName) {
+function plotColumn(data, colName) {
+  const colData = data.map(obj => obj[colName]);
   if (colData.every(item => typeof item === 'undefined')) {return};
   const isNumerical = colData.every(element => !isNaN(element));
   const columnMin = isNumerical ? Math.min(...colData) : null;
@@ -269,8 +284,8 @@ function plotColumn(colData, colName) {
   const yMax = isNumerical ? columnMax + margin : null;
   if (SpPv.hasOwnProperty(colName)) {
     option.yAxis.forEach((obj, index) => {
-      if (obj.name === SpPv[colName]) {
-        option.series.push({ name: colName, data: colData, type: 'line', xAxisIndex: index, yAxisIndex: index});
+      if (obj.name === SpPv[colName]["PV"]) {
+        option.series.push({ name: colName, data: colData, type: 'line', xAxisIndex: index, yAxisIndex: index, lineStyle: {color: 'black'}, z: 0 });
       }
     });
   } else {
@@ -308,11 +323,24 @@ function plotColumn(colData, colName) {
   cacheChart.clear();
   cacheChart.setOption(option);
   cacheChart.resize();
+  plottedColumns.push(colName);
+  updateColOptions();
+  const isPv = !Object.values(SpPv).every(obj => obj.PV !== colName);
+  if (isPv) {
+    const Sp = Object.keys(SpPv).find(key => SpPv[key].PV === colName);
+    const checkbox = document.getElementById(`checkbox-${Sp}`);
+    if (checkbox.checked) {
+      plotColumn(data, Sp);
+    }
+  }
 }
 
 
 // Delete column plot from shared plot
 function delPlot(colName) {
+  if (!plottedColumns.includes(colName)) {
+    return
+  }
   // Check if cacheChart is not empty.
   if (!Array.isArray(option.series) || option.series.length === 0) {
     console.log("cacheChart doesn't contain any plots");
@@ -320,24 +348,38 @@ function delPlot(colName) {
   }
   // Use some() method to check if colName exists in any of the objects in yAxis array.
   const isColNameInYAxis = option.yAxis.some(obj => obj.name === colName);
-  if (!isColNameInYAxis) {
+  if (!isColNameInYAxis && !SpPv.hasOwnProperty(colName)) {
     console.log(`${colName} not found in yAxis array`);
     return;
   }
-  const idx = option.yAxis.findIndex(obj => obj.name === colName);
+  console.log(option.series)
+  console.log(colName)
+  const seriesIdx = option.series.findIndex(obj => obj.name === colName);
+  console.log(seriesIdx)
+  if (seriesIdx === -1) { return };
   if (SpPv.hasOwnProperty(colName)) {
-    option.series.splice(idx, 1);
+      option.series.splice(seriesIdx, 1);
   }
   else {
+    const isPv = !Object.values(SpPv).every(obj => obj.PV !== colName);
+    if (isPv) {
+      console.log("This a PV column")
+      const Sp = Object.keys(SpPv).find(key => SpPv[key].PV === colName);
+      console.log(`SP: ${Sp}`)
+      delPlot(Sp);
+    }
     // change the grid index for plots with indices greater than idx
-    option.xAxis.forEach((obj, index) => { if (index > idx) { obj.gridIndex -= 1 } });
-    option.yAxis.forEach((obj, index) => { if (index > idx) { obj.gridIndex -= 1 } });
-    option.series.forEach((obj, index) => { if (index > idx) { obj.xAxisIndex -= 1; obj.yAxisIndex -= 1 } });
+    const xAxisIdx = option.xAxis.findIndex(obj => obj.name === colName);
+    const yAxisIdx = option.yAxis.findIndex(obj => obj.name === colName);
+    const seriesIdx = option.series.findIndex(obj => obj.name === colName);
+    console.log([xAxisIdx, yAxisIdx, seriesIdx])
+    option.yAxis.forEach((obj) => { if (obj.gridIndex > yAxisIdx) { obj.gridIndex -= 1 } });
+    option.series.forEach((obj) => { if (obj.yAxisIndex > yAxisIdx) { obj.xAxisIndex -= 1; obj.yAxisIndex -= 1 } });
     // delete plot
-    option.xAxis.splice(idx, 1);
-    option.yAxis.splice(idx, 1);
-    option.series.splice(idx, 1);
-    option.grid.splice(idx, 1);
+    option.xAxis.splice(xAxisIdx, 1);
+    option.yAxis.splice(yAxisIdx, 1);
+    option.series.splice(seriesIdx, 1);
+    option.grid.splice(yAxisIdx, 1);
     const numAxes = option.xAxis.length;
     const newGridHeight = parseInt(cacheGrid.height) / (numAxes + 1);
     const newGridTop = parseInt(cacheGrid.top) / (numAxes + 1);
@@ -356,9 +398,16 @@ function delPlot(colName) {
     });
     cachePlotArea.style.height = `${(numAxes + 1) * Math.round(cacheHPerc * document.body.clientWidth)}px`;
   }
+  console.log(option)
+  console.log(SpPv)
   cacheChart.clear();
   cacheChart.setOption(option);
   cacheChart.resize();
+  plottedColumns = plottedColumns.filter(function(element){
+    return element !== colName;
+  });
+  updateColOptions();
+  console.log(option.xAxis.length)
 }
 
 // Plot selected columns
@@ -369,7 +418,7 @@ function plotSelectedCols() {
     const colName = checkbox.value;
     if (checkbox.checked === true) {
       getData()
-        .then((data) => plotColumn(data.map(obj => obj[colName]), colName))
+        .then((data) => plotColumn(data, colName))
         .catch(console.error);
     } else if (checkbox.checked === false) {
       delPlot(colName);
@@ -409,6 +458,7 @@ formFile.addEventListener('change', function () {
       option = JSON.parse(JSON.stringify(initOption));
       cacheChart.setOption(initOption);
       uncheckColOptions();
+      plottedColumns = [];
       // delColOptions(true);
     })
     .catch((error) => {
@@ -430,27 +480,34 @@ document.addEventListener('click', (event) => {
 
 // Add event listener to update optionsList
 const columnModal = new bootstrap.Modal(document.getElementById("columnModal"));
+let selectedColumn; 
 dropdownList.addEventListener('click', (event) => {
   const clickedButton = event.target.closest('.list-group-item');
   const checkbox = document.getElementById("SP");
-  var option = clickedButton.textContent;
-  newColOption(option);
+  const erroBound = document.getElementById("error-bound-input").value;
+  selectedColumn = clickedButton.textContent;
   if (checkbox.checked) {
     columnModal.show();
     const modalList = document.getElementById('modal-list');
+    let clickedColumn;
     modalList.addEventListener('click', (event) => {
-      const clickedColumn = event.target.closest('.list-group-item');
-      clickedColumn.classList.add("active");
-      var column = clickedColumn.textContent;
-      SpPv[option] = column;
-      console.log(SpPv)
+      clickedColumn = event.target.closest('.list-group-item');
+      if (clickedColumn.classList.contains("active")) {
+        clickedColumn.classList.remove("active");
+      } else {
+        clickedColumn.classList.add("active");
+        const column = clickedColumn.textContent;
+        SpPv[selectedColumn] = {"PV": column, error: erroBound};
+      }
     });
     const okButton = document.getElementById('column-modal-ok-btn');
     okButton.addEventListener('click', () => {
+      clickedColumn.classList.remove("active");
       columnModal.hide();
     });
     checkbox.checked = false;
   }
+  newColOption(selectedColumn);
 });
 
 // Add event listener to delete column option
@@ -502,3 +559,17 @@ cacheChart.on('brushEnd', function (params) {
     }
   }
 });
+
+// // Activate/deactivate SP buttons
+// for (const SP in SpPv) {
+//   const myCheckbox = document.getElementById(`checkbox-${SpPv[SP].PV}`);
+//   const myButton = document.getElementById(`checkbox-${SP}`);
+
+//   myCheckbox.addEventListener("change", function() {
+//     if (this.checked) {
+//       myButton.disabled = false;
+//     } else {
+//       myButton.disabled = true;
+//     }
+//   });
+// }
