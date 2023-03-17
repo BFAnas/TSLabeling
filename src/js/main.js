@@ -7,6 +7,8 @@ import * as bootstrap from 'bootstrap';
 import { csvParse } from 'd3';
 import * as echarts from 'echarts';
 
+import cloneDeep from 'lodash/cloneDeep';
+
 //--------------------- Cached variables ---------------------------//
 let data;
 let outData;
@@ -47,17 +49,37 @@ let initOption = {
       saveAsImage: { show: true, title: 'Save As Image', type: 'png' },
       dataZoom: { yAxisIndex: 'none' },
       brush: {
-        type: ['lineX', 'clear']
-      }
+        type: ['lineX']
+      },
+      myCustomButton: {
+        show: true,
+        title: 'Clear Mark Area',
+        icon: 'path://M512 85.333333l426.666667 426.666667-170.666667 170.666667-256-256-256 256-170.666667-170.666667L469.333333 85.333333z',
+        onclick: function () {
+          console.log('Clear Mark Area button clicked');
+          clearMarkArea();
+        },
+      },
     },
   },
-  tooltip: { trigger: 'axis', axisPointer: { animation: false } },
+  tooltip: {
+    trigger: 'axis',
+    formatter: function (params) {
+      let tooltipText = '';
+      params.forEach((param) => {
+        if (!param.seriesName.includes('_Upper') && !param.seriesName.includes('_Lower')) {
+          tooltipText += `${param.marker} <strong>${param.seriesName}</strong>: ${parseFloat(param.value).toFixed(2)}<br>`;
+        }
+      });
+      return tooltipText;
+    },
+  },
   axisPointer: { link: [{ xAxisIndex: 'all' }] },
   brush: {
     xAxisIndex: 0,
   },
 };
-let option = JSON.parse(JSON.stringify(initOption));
+let option = cloneDeep(initOption);
 cacheChart.setOption(option);
 let cacheLabelColors = {};
 const cacheMyColors = svars.myColors.split(", ")
@@ -275,7 +297,7 @@ function generateModalList(columns) {
 // Plot column in shared chart
 function plotColumn(data, colName) {
   const colData = data.map(obj => obj[colName]);
-  if (colData.every(item => typeof item === 'undefined')) {return};
+  if (colData.every(item => typeof item === 'undefined')) { return };
   const isNumerical = colData.every(element => !isNaN(element));
   const columnMin = isNumerical ? Math.min(...colData) : null;
   const columnMax = isNumerical ? Math.max(...colData) : null;
@@ -285,7 +307,17 @@ function plotColumn(data, colName) {
   if (SpPv.hasOwnProperty(colName)) {
     option.yAxis.forEach((obj, index) => {
       if (obj.name === SpPv[colName]["PV"]) {
-        option.series.push({ name: colName, data: colData, type: 'line', xAxisIndex: index, yAxisIndex: index, lineStyle: {color: 'black'}, z: 0 });
+        option.series.push({ name: colName, data: colData, type: 'line', xAxisIndex: index, yAxisIndex: index, lineStyle: { color: 'black' }, z: 0, symbol: 'none' });
+        if (SpPv[colName]["errorBound"]) {
+          option.series.push({
+            name: colName + '_Upper', data: generateErrorBoundData(colData, SpPv[colName]["errorBound"], true), type: 'line',
+            xAxisIndex: index, yAxisIndex: index, lineStyle: { color: 'grey' }, z: 0, symbol: 'none',
+          });
+          option.series.push({
+            name: colName + '_Lower', data: generateErrorBoundData(colData, SpPv[colName]["errorBound"], false), type: 'line',
+            xAxisIndex: index, yAxisIndex: index, lineStyle: { color: 'grey' }, z: 0, symbol: 'none',
+          });
+        }
       }
     });
   } else {
@@ -352,13 +384,16 @@ function delPlot(colName) {
     console.log(`${colName} not found in yAxis array`);
     return;
   }
-  console.log(option.series)
-  console.log(colName)
   const seriesIdx = option.series.findIndex(obj => obj.name === colName);
-  console.log(seriesIdx)
   if (seriesIdx === -1) { return };
   if (SpPv.hasOwnProperty(colName)) {
-      option.series.splice(seriesIdx, 1);
+    option.series.splice(seriesIdx, 1);
+    if (SpPv[colName]["errorBound"]) {
+      const seriesUpperIdx = option.series.findIndex(obj => obj.name === colName + '_Upper');
+      option.series.splice(seriesUpperIdx, 1);
+      const seriesLowerIdx = option.series.findIndex(obj => obj.name === colName + '_Lower');
+      option.series.splice(seriesLowerIdx, 1);
+    }
   }
   else {
     const isPv = !Object.values(SpPv).every(obj => obj.PV !== colName);
@@ -398,16 +433,13 @@ function delPlot(colName) {
     });
     cachePlotArea.style.height = `${(numAxes + 1) * Math.round(cacheHPerc * document.body.clientWidth)}px`;
   }
-  console.log(option)
-  console.log(SpPv)
   cacheChart.clear();
   cacheChart.setOption(option);
   cacheChart.resize();
-  plottedColumns = plottedColumns.filter(function(element){
+  plottedColumns = plottedColumns.filter(function (element) {
     return element !== colName;
   });
   updateColOptions();
-  console.log(option.xAxis.length)
 }
 
 // Plot selected columns
@@ -430,7 +462,6 @@ function plotSelectedCols() {
 function markLabelArea(label, coordRange) {
   const labelArray = new Array(coordRange[1] - coordRange[0]).fill(label);
   outData.splice(coordRange[0], coordRange[1] - coordRange[0], ...labelArray);
-  console.log(outData);
   if (option.series.length > 0) {
     if (option.series[0].markArea) {
       option.series[0].markArea.data.push([{ xAxis: coordRange[0], itemStyle: { color: cacheLabelColors[label], opacity: 0.5 } }, { xAxis: coordRange[1] }])
@@ -443,6 +474,20 @@ function markLabelArea(label, coordRange) {
   }
 }
 
+function clearMarkArea() {
+  if (option.series.length > 0 && option.series[0].markArea) {
+    option.series[0].markArea.data = [];
+    outData = new Array(data.length).fill(null);
+    cacheChart.setOption(option);
+  }
+}
+
+function generateErrorBoundData(originalData, errorBound, isUpperBound) {
+  return originalData.map((dataPoint) => {
+    return isUpperBound ? parseFloat(dataPoint) + parseFloat(errorBound) : parseFloat(dataPoint) - parseFloat(errorBound);
+  });
+}
+
 //--------------------- Main ---------------------------//
 initHPerc();
 
@@ -451,12 +496,12 @@ const formFile = document.getElementById('file-selector');
 formFile.addEventListener('change', function () {
   getData(true)
     .then((data) => {
-      outData = new Array(data.length).fill(null);;
+      outData = new Array(data.length).fill(null);
       generateList(data.columns);
       generateModalList(data.columns);
       cacheChart.clear();
-      option = JSON.parse(JSON.stringify(initOption));
-      cacheChart.setOption(initOption);
+      option = cloneDeep(initOption);
+      cacheChart.setOption(option);
       uncheckColOptions();
       plottedColumns = [];
       // delColOptions(true);
@@ -505,7 +550,7 @@ modalList.addEventListener('click', (event) => {
     console.log("Button active");
     clickedColumn.classList.add("active");
     const column = clickedColumn.textContent;
-    SpPv[selectedColumn] = {"PV": column, error: erroBound};
+    SpPv[selectedColumn] = { "PV": column, "errorBound": erroBound };
   }
 });
 // 3
@@ -559,6 +604,7 @@ window.addEventListener('resize', function () {
 
 // Get selected data using brush
 cacheChart.on('brushEnd', function (params) {
+  console.log(params.areas.length)
   if (params.areas.length > 0) {
     var coordRange = params.areas[0].coordRange;
     let label;
@@ -567,4 +613,9 @@ cacheChart.on('brushEnd', function (params) {
       markLabelArea(label, coordRange);
     }
   }
+});
+
+cacheChart.on('myCustomButtonClick', function () {
+  console.log('Clear Mark Area button clicked');
+  clearMarkArea();
 });
